@@ -1,0 +1,146 @@
+import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, Dimensions, Keyboard } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StatusBar } from "expo-status-bar";
+
+const { width, height } = Dimensions.get('window');
+
+export default function LoginScreen() {
+  const [keyboardVisible, setKeyboardVisible] = useState(false); // State to manage keyboard visibility
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true); // Set state when keyboard is opened
+    });
+
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false); // Reset state when keyboard is closed
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      keyboardDidHideListener.remove();
+      keyboardDidShowListener.remove();
+    };
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      <Image style={styles.backgroundImage} source={require("../assets/image.jpg")} />
+      
+      {/* Title and Form */}
+      <View style={styles.formContainer}>
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Login</Text>
+        </View>
+        
+        {/* Form */}
+        <View style={styles.inputContainer}>
+          <View style={styles.inputWrapper}>
+            <TextInput 
+              style={styles.input} 
+              placeholder="Email" 
+              placeholderTextColor={"#BFAF6B"} // Gold placeholder text
+            />
+          </View>
+          <View style={styles.inputWrapper}>
+            <TextInput 
+              style={styles.input} 
+              placeholder="Password" 
+              placeholderTextColor={"#BFAF6B"} // Gold placeholder text
+              secureTextEntry 
+            />
+          </View>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={styles.loginButton}>
+            <Text style={styles.buttonText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {!keyboardVisible && ( // Conditional rendering based on keyboard visibility
+          <View style={styles.signupContainer}>
+            <Text style={styles.signupPrompt}>Don't have an account?</Text>
+            <TouchableOpacity>
+              <Text style={styles.signupText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#000', // Black background
+    height: '100%',
+    width: '100%',
+  },
+  backgroundImage: {
+    height: height,
+    width: width,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  formContainer: {
+    flex: 1,
+    justifyContent: 'space-around',
+    paddingTop: height * 0.1,
+    paddingBottom: height * 0.02,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    position: 'relative',
+    zIndex: 1,
+  },
+  title: {
+    color: '#BFAF6B', // Gold title text
+    fontWeight: 'bold',
+    letterSpacing: 1,
+    fontSize: 40,
+  },
+  inputContainer: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+  },
+  inputWrapper: {
+    backgroundColor: 'rgba(191, 175, 107, 0.1)', // Light gold background for inputs
+    padding: 15,
+    borderRadius: 20,
+    width: '100%',
+    marginBottom: 16, // Space between inputs
+  },
+  input: {
+    width: '100%',
+    color: '#FFF', // White text for inputs
+  },
+  buttonContainer: {
+    width: '100%',
+  },
+  loginButton: {
+    backgroundColor: '#BFAF6B', // Gold button background
+    padding: 15,
+    borderRadius: 20,
+  },
+  buttonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000', // Black text for button
+    textAlign: 'center',
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  signupPrompt: {
+    color: '#FFF', // White text for prompt
+  },
+  signupText: {
+    color: '#BFAF6B', // Gold sign up text
+    marginLeft: 5,
+  },
+});
