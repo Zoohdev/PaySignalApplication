@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from pay_signal_app import views 
 
+
+
+
+
+
+# Define URL patterns for the app
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('register/', views.register, name='register'),
 ]
