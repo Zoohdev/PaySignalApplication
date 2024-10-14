@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "cantthinkofname",
+    "slug": "cantthinkofname",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png", // Path to your splash image
+      "resizeMode": "contain",        // Resize mode for the splash image
+      "backgroundColor": "#ffffff"    // Background color of the splash screen
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
