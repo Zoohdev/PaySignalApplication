@@ -5,6 +5,10 @@ from django.contrib import messages
 
 # Create your views here.
 
+def home(request):
+    return render(request, "home.html")
+
+
 def register(request):
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)

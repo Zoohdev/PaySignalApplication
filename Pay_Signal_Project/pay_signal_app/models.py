@@ -15,7 +15,7 @@ class User(AbstractUser):
     - is_verified_status: A boolean indicating if the user is verified.
     """
     firstname = models.CharField(max_length=50, default="Null")
-    middlename = models.CharField(max_length=50, default="Null")
+    middlename = models.CharField(max_length=50, default="Null", blank=True)
     lastname = models.CharField(max_length=50, default="Null")
     username = models.CharField(max_length=50, unique=True)
     email = models.EmailField(unique=True)

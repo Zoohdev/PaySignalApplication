@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
 from .models import User
-
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import datetime
 
 
 class UserRegistrationForm(UserCreationForm):
@@ -56,9 +57,13 @@ class UserRegistrationForm(UserCreationForm):
     )
     date_of_birth = forms.DateField(
         required=True,
-        widget=forms.SelectDateWidget(attrs={'placeholder': 'Select your Date of Birth'})
-        
+        widget=forms.SelectDateWidget(
+            years=range(1900, datetime.now().year + 1),
+            attrs={'placeholder': 'Select your Date of Birth'}
+        )
     )
+        
+    
     country = forms.CharField(
         max_length=50,
         required=True,
@@ -97,3 +102,17 @@ class UserRegistrationForm(UserCreationForm):
             "password2",
         )
         
+        
+        
+    def clean_date_of_birth(self):
+        dob = self.cleaned_data.get('date_of_birth')
+        if dob is None:
+            raise ValidationError('Date of birth is required.')
+        today = timezone.now().date()
+        try:
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        except TypeError:
+            raise ValidationError('Date of birth must be a valid date.')
+        if age < 18:
+            raise ValidationError('You must be at least 18 years old to register.')
+        return dob

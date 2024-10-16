@@ -27,4 +27,5 @@ from pay_signal_app import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('register/', views.register, name='register'),
+    path('', views.home, name='home'),
 ]
