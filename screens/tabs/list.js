@@ -1,22 +1,145 @@
-import { View, Text, StyleSheet } from 'react-native'; // Corrected here
 import React from 'react';
-import { Link } from 'expo-router';
+import { View, Text, StyleSheet } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 
 const List = () => {
+  const Number = "IBAn123456789"; // Placeholder for actual Number
+  const amount = "R12345"; // Placeholder for actual amounts
+
   return (
-    <View style={styles.container}>
-      <Text>Hey there list</Text>
-      <Link href="./home">Setting</Link>
+    <View style={styles.outerContainer}>
+      <View style={[styles.container, styles.overview]}>
+        <View style={styles.iconContainer}>
+          <Svg height={scale(18)} width={scale(18)} viewBox="0 0 32 32">
+            <Circle cx="8" cy="8" r="4" fill={"orange"} />
+            <Circle cx="24" cy="8" r="4" fill={"orange"} />
+            <Circle cx="8" cy="24" r="4" fill={"orange"} />
+            <Circle cx="24" cy="24" r="4" fill={"orange"} />
+          </Svg>
+        </View>
+        <Text style={styles.boxTwo}>OverView</Text>
+        <View style={styles.iconContainer}>
+          <Svg height={scale(25)} width={scale(25)} viewBox="0 0 32 32">
+            <Path d="M4,8 L28,8 M10,16 L22,16" stroke={"orange"} strokeWidth="2" strokeLinecap="round" />
+          </Svg>
+        </View>
+      </View>
+
+      {/* Account text above new section */}
+      <View style={styles.accountTextContainer}>
+        <Text style={styles.accountText}>Cards</Text>
+      </View>
+
+      {/* New Section for Account */}
+      {['Prepaid Card', 'Debit Card', 'Business Credit Card'].map((cardName, index) => (
+        <View style={styles.newSection} key={index}>
+          <View style={styles.accountContainer}>
+          <Svg style={styles.icon} height={scale(25)} width={scale(25)} viewBox="0 0 487.6 487.6">
+  <Path d="M440,80H48c-22.1,0-40,17.9-40,40v247.2c0,22.1,17.9,40,40,40h392c22.1,0,40-17.9,40-40V120C480,97.9,462.1,80,440,80z
+    M48,100h392c11.1,0,20,8.9,20,20v40H28v-40C28,108.9,36.9,100,48,100z M440,368H48c-11.1,0-20-8.9-20-20V240h432v108
+    C460,359.1,451.1,368,440,368z M100,320h120c11,0,20-9,20-20s-9-20-20-20H100c-11,0-20,9-20,20S89,320,100,320z M340,320h48c11,0,20-9,20-20s-9-20-20-20h-48c-11,0-20,9-20,20S329,320,340,320z"/>
+</Svg>
+            <View style={styles.accountDetails}>
+              <Text style={styles.card}>{cardName}</Text>
+              <Text style={styles.amount}>{amount}</Text>
+            </View>
+          </View>
+
+          {/* Conditionally render ID number based on card type */}
+          <View style={styles.leftAlign}>
+            <Text style={styles.idNum}>
+              {cardName === 'Debit Card' ? 'Personal Account' : Number}
+            </Text>
+          </View>
+        </View>
+      ))}
     </View>
   );
 };
 
-const styles = StyleSheet.create({ // Corrected here
+const styles = StyleSheet.create({
+  outerContainer: {
+    paddingVertical: scale(20),
+    flex: 1,
+  },
   container: {
-    backgroundColor: 'white',
-    flex: 1, // Added to make sure the View takes up space
-    justifyContent: 'center', // Centers the text vertically
-    alignItems: 'center', // Centers the text horizontally
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: verticalScale(20),
+    backgroundColor: "#2a2b37",
+    width: '100%',
+    paddingHorizontal: scale(10), // Adjusted to shift content more to the left
+    paddingVertical: scale(15),
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  boxTwo: {
+    fontSize: moderateScale(20),
+    fontWeight: "bold",
+    color: 'orange',
+  },
+  newSection: {
+    marginVertical: verticalScale(20),
+    paddingHorizontal: scale(15),
+  },
+  accountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  icon: {
+    width: scale(25),
+    height: scale(25),
+    marginLeft: scale(10),
+  },
+  accountDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginLeft: scale(5),
+    flex: 1,
+  },
+  card: {
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+    flexShrink: 1, // Ensures text doesn't overflow
+    maxWidth: '60%', // Limits card name width
+  },
+  amount: {
+    fontSize: moderateScale(14),
+    color: 'gray',
+    marginLeft: scale(10),
+    flexShrink: 1, // Prevents overflow
+  },
+  idNum: {
+    fontSize: moderateScale(14),
+    color: 'gray',
+    marginTop: verticalScale(5),
+    marginLeft: scale(20),
+    flexWrap: 'wrap',
+  },
+  leftAlign: {
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    marginTop: verticalScale(5),
+    marginLeft: scale(20),
+  },
+  accountTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginTop: verticalScale(5),
+  },
+  accountText: {
+    color: 'orange',
+    fontSize: moderateScale(18),
+    fontWeight: 'bold',
   },
 });
 

@@ -1,9 +1,58 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions, Animated, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
+const WelcomeAnimation = () => {
+  const [fadeAnim] = useState(new Animated.Value(0)); // Initial opacity
+  const [scaleAnim] = useState(new Animated.Value(0.5)); // Initial scale
+  const [showHome, setShowHome] = useState(false); // To control when to show the home screen
+
+  const navigation = useNavigation();
+
+  // Animation to fade in and scale up the text
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 2000, // 2 seconds fade-in
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 800, // 0.8 seconds scale-up
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // After the animation is done, set `showHome` to true
+      setShowHome(true);
+    });
+  }, [fadeAnim, scaleAnim]);
+
+  // If animation is complete, show Home screen
+  if (showHome) {
+    return <Home />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <Animated.View
+        style={[
+          styles.textContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ scale: scaleAnim }],
+          },
+        ]}
+      >
+        <Text style={styles.welcomeText}>Welcome to PaySignal</Text>
+      </Animated.View>
+    </View>
+  );
+};
+
+// Home Component
 const Home = () => {
   const navigation = useNavigation();
 
@@ -11,13 +60,7 @@ const Home = () => {
     <View style={styles.container}>
       {/* Welcome Card */}
       <View style={styles.card}>
-        <Image
-          source={require('../assets/icon.png')}  // Fixed the image import
-          style={styles.logo}
-          accessible={true}
-          accessibilityLabel="PaySignal Logo"
-        />
-        <Text style={styles.welcomeText}>Welcome to PaySignal!</Text>
+        <Text style={styles.welcomeText}>Home!</Text>
 
         {/* Buttons */}
         <TouchableOpacity
@@ -49,15 +92,24 @@ const Home = () => {
   );
 };
 
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f2f2f2',
+    backgroundColor: 'white', // Set background color to black
+  },
+  textContainer: {
+    alignItems: 'center',
+  },
+  welcomeText: {
+    color: 'black', // Text color is white for visibility
+    fontSize: 36,
+    fontWeight: 'bold',
   },
   card: {
-    backgroundColor: '#f7f7f',
+    backgroundColor: '#fff', // Dark gray card background for contrast
     padding: 20,
     borderRadius: 10,
     alignItems: 'center',
@@ -65,18 +117,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 5,  // Elevation for Android shadow
+    elevation: 5, // Elevation for Android shadow
     width: width * 0.9,
-  },
-  logo: {
-    width: width * 0.25,  // Responsive width
-    height: width * 0.25, // Responsive height
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
   },
   button: {
     backgroundColor: '#FA7901',
@@ -94,4 +136,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Home;
+export default WelcomeAnimation;
