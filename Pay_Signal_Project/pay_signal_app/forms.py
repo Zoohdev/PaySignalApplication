@@ -63,7 +63,6 @@ class UserRegistrationForm(UserCreationForm):
         )
     )
         
-    
     country = forms.CharField(
         max_length=50,
         required=True,

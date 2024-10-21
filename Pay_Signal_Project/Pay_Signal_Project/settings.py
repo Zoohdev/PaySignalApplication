@@ -126,3 +126,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 AUTH_USER_MODEL = 'pay_signal_app.User' # Added this line to fix the conflict between default user model and custom user model while migrating.
+
+
+# Configurations for sending emails
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'paysignalapp@gmail.com'  # Your email
+EMAIL_HOST_PASSWORD = 'uugs fqlb rsmj zayp'# Your email password
+

@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -24,6 +25,7 @@ class User(AbstractUser):
     country = models.CharField(max_length=50)
     currency = models.CharField(max_length=50)
     is_verified_status = models.BooleanField(default=False)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True) # A unique identifier for the user.
     
     def __str__(self):
         """
