@@ -134,5 +134,5 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'paysignalapp@gmail.com'  # Your email
-EMAIL_HOST_PASSWORD = 'uugs fqlb rsmj zayp'# Your email password
+EMAIL_HOST_PASSWORD = 'ukzt cxsi slfa ozno'# Your email password
 

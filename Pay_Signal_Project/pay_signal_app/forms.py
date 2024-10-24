@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import User
+from .models import User, Account, Transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import datetime
@@ -115,3 +115,24 @@ class UserRegistrationForm(UserCreationForm):
         if age < 18:
             raise ValidationError('You must be at least 18 years old to register.')
         return dob
+
+
+
+class AccountForm(forms.ModelForm):
+    class Meta:
+        model = Account
+        fields = ['account_type', 'currency']
+        
+        
+class TransactionForm(forms.Form):
+    recipient_account_number = forms.CharField(max_length=11, label="Recipient Account Number")
+    amount = forms.DecimalField(max_digits=15, decimal_places=2, label="Amount")
+    class Meta:
+        model = Transaction
+        fields = ['recipient_name', 'amount', 'currency', 'user_phone', 'user_location', 'recipient_account_id']
+        
+        def clean_amount(self):
+            amount = self.cleaned_data['amount']
+            if amount <= 0:
+                raise forms.ValidationError("Amount must be greater than zero.")
+            return amount

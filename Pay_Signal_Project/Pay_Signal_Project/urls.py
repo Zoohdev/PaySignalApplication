@@ -36,4 +36,11 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('resend-verification/<int:user_id>/', views.resend_verification_email, name='resend_verification_email'),
+    path('create-account/', views.create_account, name='create_account'),
+    path('account/<int:account_id>/create-transaction/', views.create_transaction, name='create_transaction'),
+    path('accounts/', views.account_list, name='account_list'),
+    path('accounts/<int:account_id>/transactions/', views.transaction_list, name='transaction_list'),
+    path('receipt/<str:transaction_id>/', views.transaction_receipt, name='transaction_receipt'),
+
+
 ]

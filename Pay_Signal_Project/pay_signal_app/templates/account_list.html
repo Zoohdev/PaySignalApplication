@@ -1,0 +1,17 @@
+<!-- templates/account_list.html -->
+<h1>Your Accounts</h1>
+
+
+<ul>
+    {% for account in accounts %}
+        <li>
+            {{ account.account_type }} - Balance: {{ account.balance }} {{ account.currency_type }} <br>
+            <a href="{% url 'transaction_list' account.id %}">View Transactions</a>
+        </li>
+    {% empty %}
+        <li>You have no accounts yet.</li>
+    {% endfor %}
+</ul>
+
+
+<a href="{% url 'create_account' %}">Create a new account</a>

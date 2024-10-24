@@ -13,6 +13,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
 from .forms import UserRegistrationForm
 from .token import email_verification_token
+from .models import Account, Transaction
+from .forms import AccountForm, TransactionForm
 
 # Home page view
 def home(request):
@@ -118,3 +120,94 @@ def resend_verification_email(request, user_id):
         messages.info(request, 'Your account is already verified.')
 
     return redirect('login')
+
+
+@login_required
+def create_account(request):
+    if request.method == 'POST':
+        form = AccountForm(request.POST)
+        if form.is_valid():
+            account = form.save(commit=False)
+            account.user = request.user
+            account.save()
+            return redirect('account_list')  # Redirect to a list of user accounts
+    else:
+        form = AccountForm()
+    return render(request, 'create_account.html', {'form': form})
+
+
+@login_required
+def account_list(request):
+    accounts = Account.objects.filter(user=request.user)  # Filter accounts for the logged-in user
+    return render(request, 'account_list.html', {'accounts': accounts})
+
+
+
+@login_required
+def create_transaction(request, account_id):
+    account = Account.objects.get(id=account_id)
+    
+    if request.method == 'POST':
+        form = TransactionForm(request.POST)
+        
+        if form.is_valid():
+            recipient_account_number = form.cleaned_data['recipient_account_number']
+            amount = form.cleaned_data['amount']
+            user_account = Account.objects.get(id=account_id)
+
+            # Validate the amount is greater than 0 and does not exceed user balance
+            if amount <= 0:
+                messages.error(request, "Amount must be greater than zero.")
+                return render(request, 'create_transaction.html', {'form': form, 'account': account})
+            
+            if amount > user_account.balance:
+                messages.error(request, "Insufficient balance for this transaction.")
+                return render(request, 'create_transaction.html', {'form': form, 'account': account})
+            
+            # Check if the recipient account exists based on the account_number
+            try:
+                recipient_account = Account.objects.get(account_number=recipient_account_number)
+                
+                # Create the transaction
+                transaction = Transaction.objects.create(
+                    account=user_account,
+                    recipient_account_number=recipient_account.account_number,
+                    recipient_name=recipient_account.user.username,  # Show recipient's name
+                    amount=amount,
+                    transaction_type="Transfer",
+                    user_phone=user_account.user.phone_number,
+                    user_location="User Location"  # Optionally, dynamically set the user's location
+                )
+
+                # Deduct the amount from the sender's account balance
+                user_account.balance -= amount
+                user_account.save()
+
+                # Redirect to receipt view with transaction ID
+                return redirect('transaction_receipt', transaction_id=transaction.transaction_id)
+
+            except Account.DoesNotExist:
+                messages.error(request, "User not registered.")
+                return render(request, 'create_transaction.html', {'form': form, 'account': account})
+    
+    else:
+        form = TransactionForm()
+    
+    return render(request, 'create_transaction.html', {'form': form, 'account': account})
+@login_required
+def transaction_list(request, account_id):
+    """
+    Displays a list of transactions for a given account, belonging to the logged-in user.
+
+    :param request: The HTTP request
+    :param account_id: The ID of the account for which to show transactions
+    :return: An HTTP response with a rendered template
+    """
+    account = get_object_or_404(Account, id=account_id, user=request.user)  # Ensure the account belongs to the logged-in user
+    transactions = Transaction.objects.filter(account=account)  # Filter transactions for the account
+    return render(request, 'transaction_list.html', {'account': account, 'transactions': transactions})
+
+
+def transaction_receipt(request, transaction_id):
+    transaction = Transaction.objects.get(transaction_id=transaction_id)
+    return redirect('transaction_receipt', transaction_id=transaction.transaction_id)
