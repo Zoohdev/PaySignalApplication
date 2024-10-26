@@ -1,15 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import SvgComponent from './svg';
+import { TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native'; // Add navigation hook
+import { StatusBar } from 'react-native';
+
+
 
 const All = () => {
   const Number = "IBAn123456789"; // Placeholder for actual Number
   const amount = "R12345"; // Placeholder for actual amounts
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  const navigation = useNavigation(); // React Navigation hook for navigation
+
+
+
+  const toggleDropdown = () => {
+    setDropdownVisible(!dropdownVisible);
+  };
+
+  // Handler for navigating to different screens
+  const handleDropdownOption = (option) => {
+    setDropdownVisible(false); // Close the dropdown
+    navigation.navigate(option); // Navigate to corresponding screen
+  };
 
   return (
+    
     <View style={styles.outerContainer}>
+     <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#2a2b37" 
+      />
       <View style={[styles.container, styles.overview]}>
         <View style={styles.iconContainer}>
           <Svg height={scale(18)} width={scale(18)} viewBox="0 0 32 32">
@@ -20,10 +44,30 @@ const All = () => {
           </Svg>
         </View>
         <Text style={styles.boxTwo}>OverView</Text>
-        <View style={styles.iconContainer}>
-          <Svg height={scale(25)} width={scale(25)} viewBox="0 0 32 32">
-            <Path d="M4,8 L28,8 M10,16 L22,16" stroke={"orange"} strokeWidth="2" strokeLinecap="round" />
-          </Svg>
+        <View style={styles.dropdownIconContainer}>
+          <TouchableOpacity onPress={toggleDropdown}>
+            <Svg height={scale(25)} width={scale(25)} viewBox="0 0 32 32">
+              <Path d="M4,8 L28,8 M10,16 L22,16" stroke="orange" strokeWidth="2" strokeLinecap="round" />
+            </Svg>
+          </TouchableOpacity>
+
+          {/* Dropdown Options */}
+          {dropdownVisible && (
+  <View style={styles.dropdown}>
+    <TouchableOpacity style={styles.dropdownOption} onPress={() => handleDropdownOption('Profile')}>
+      <Text style={styles.dropdownText}>Profile</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.dropdownOption} onPress={() => handleDropdownOption('addCard')}>
+      <Text style={styles.dropdownText}>AddCard</Text>
+    </TouchableOpacity>
+
+    <TouchableOpacity style={styles.dropdownOption} onPress={() => handleDropdownOption('Exchange')}>
+      <Text style={styles.dropdownText}>Exchange</Text>
+    </TouchableOpacity>
+  </View>
+)}
+
         </View>
       </View>
 
@@ -34,12 +78,18 @@ const All = () => {
       <View style={styles.fixedActionButtonContainer}>
       {/* Button with the two SVGs */}
       <View style={styles.fixedActionButton}>
-        {/* SVG on the left */}
-        <View style={styles.svgContainer}>
-         <SvgComponent/>
-        </View>
+      {/* SVG on the left with navigation */}
+      <TouchableOpacity
+        style={styles.svgContainer}
+        onPress={() => console.log("pushed one")} // Adjust to your stack screen name
+      >
+        <SvgComponent />
+      </TouchableOpacity>
 
-        {/* SVG inside the button */}
+      {/* SVG inside the button with navigation */}
+      <TouchableOpacity
+        onPress={() => navigation.navigate('BusinessAccount')} // Adjust to your stack screen name
+      >
         <Svg
           width="50"
           height="50"
@@ -69,7 +119,8 @@ const All = () => {
             strokeLinejoin="round"
           />
         </Svg>
-      </View>
+      </TouchableOpacity>
+    </View>
     </View>
       <ScrollView contentContainerStyle={[styles.scrollableContainer, { paddingBottom: scale(50) }]}>
   {/* Accounts Text inside ScrollView */}
@@ -106,25 +157,27 @@ const All = () => {
 
       {/* New Section for Account */}
       {['Prepaid Card', 'Debit Card', 'Business Credit Card'].map((cardName, index) => (
-        <View style={styles.newSection} key={index}>
-          <View style={styles.accountContainer}>
-            <Svg style={styles.icon} height={scale(25)} width={scale(25)} viewBox="0 0 487.6 487.6">
-              <Path d="M460.3,216.55h-11.6v-69.7c0-28.5-23.2-51.6-51.6-51.6h-10.7l0.1-25.9c0-19.2-15.6-34.8-34.8-34.8H42.3c-23.1,0-42,18.6-42.3,41.7c0,0.2,0,0.4,0,0.6v341.4c0,19.2,15.6,34.8,34.8,34.8h362.4c28.5,0,51.6-23.2,51.6-51.6v-69.8h11.6c15,0,27.2-12.2,27.2-27.2v-60.7C487.5,228.75,475.3,216.55,460.3,216.55z M42.3,58.55h309.4c5.9,0,10.8,4.8,10.8,10.7l-0.1,26H42.3c-10.1,0-18.3-8.2-18.3-18.3S32.2,58.55,42.3,58.55z M424.7,401.35c0,15.2-12.4,27.6-27.6,27.6H34.7c-5.9,0-10.8-4.8-10.8-10.8v-303.1c5.6,2.7,11.8,4.2,18.4,4.2h354.8c15.2,0,27.6,12.4,27.6,27.6v69.7h-81.9c-15,0-27.2,12.2-27.2,27.2v60.7c0,15,12.2,27.2,27.2,27.2h81.9V401.35z M463.5,304.45c0,1.8-1.4,3.2-3.2,3.2H342.9c-1.8,0-3.2-1.4-3.2-3.2v-60.7c0-1.7,1.4-3.2,3.2-3.2h117.4c1.7,0,3.2,1.4,3.2,3.2L463.5,304.45z" />
-            </Svg>
-            <View style={styles.accountDetails}>
-              <Text style={styles.card}>{cardName}</Text>
-              <Text style={styles.amount}>{amount}</Text>
-            </View>
-          </View>
+  <View style={styles.newSection} key={index}>
+    <TouchableOpacity onPress={() => navigation.navigate('CardDetails')} style={styles.accountContainer}>
+      <Svg style={styles.icon} height={scale(25)} width={scale(25)} viewBox="0 0 487.6 487.6">
+        <Path d="M440,80H48c-22.1,0-40,17.9-40,40v247.2c0,22.1,17.9,40,40,40h392c22.1,0,40-17.9,40-40V120C480,97.9,462.1,80,440,80z
+          M48,100h392c11.1,0,20,8.9,20,20v40H28v-40C28,108.9,36.9,100,48,100z M440,368H48c-11.1,0-20-8.9-20-20V240h432v108
+          C460,359.1,451.1,368,440,368z M100,320h120c11,0,20-9,20-20s-9-20-20-20H100c-11,0-20,9-20,20S89,320,100,320z M340,320h48c11,0,20-9,20-20s-9-20-20-20h-48c-11,0-20,9-20,20S329,320,340,320z"/>
+      </Svg>
+      <View style={styles.accountDetails}>
+        <Text style={styles.card}>{cardName}</Text>
+        <Text style={styles.amount}>{amount}</Text>
+      </View>
+    </TouchableOpacity>
 
-          {/* Conditionally render ID number based on card type */}
-          <View style={styles.leftAlign}>
-            <Text style={styles.idNum}>
-              {cardName === 'Debit Card' ? 'Personal Account' : Number}
-            </Text>
-          </View>
-        </View>
-      ))}
+    {/* Conditionally render ID number based on card type */}
+    <View style={styles.leftAlign}>
+      <Text style={styles.idNum}>
+        {cardName === 'Debit Card' ? 'Personal Account' : Number}
+      </Text>
+    </View>
+  </View>
+))}
       <View style={styles.accountTextContainer}>
         <Text style={styles.accountText}>Cards</Text>
       </View>
@@ -153,12 +206,12 @@ const All = () => {
       
 </ScrollView>
     </View>
-  );
+  );s
 };
 
 const styles = StyleSheet.create({
   outerContainer: {
-    paddingVertical: scale(20),
+    paddingVertical: scale(0),
     flex: 1,
   },
   
@@ -166,8 +219,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-end',  // Aligns the button to the right
     position: 'absolute',
-    top: 150,    // Fixes the position
-    right: 0,    // Adjust the space from the right
+    top: 250,    // Fixes the position
+    right: 0,    // Adjust the space from the right-
+    zIndex: 100,
   },
 
   fixedActionButton: {
@@ -187,11 +241,14 @@ const styles = StyleSheet.create({
 
   svgContainer: {
     paddingRight: 10,  // Adds spacing between the left SVG and button content
+ zIndex:1
   },
 
   buttonContent: {
     flexDirection: 'row',  // To place content on the right of the button
     alignItems: 'center',
+    zIndex:1
+    
   },
 
   accountTextContainer: {
@@ -199,12 +256,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     marginTop: verticalScale(5),
+    zIndex:1
+
   },
 
   accountText: {
     color: 'orange',
     fontSize: moderateScale(18),
     fontWeight: 'bold',
+    zIndex:1
+
   },
 
   currencyCode: {
@@ -212,6 +273,8 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     fontWeight: 'bold',
     marginLeft: scale(5),
+    zIndex:1
+
   },
 
   currency: {
@@ -219,18 +282,24 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(18),
     fontWeight: 'bold',
     marginLeft: scale(200), // Adds spacing between "Accounts" and "EUR"
+    zIndex:1
+
   },
   accountTextContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     marginTop: verticalScale(5),
+    zIndex:1
+
   },
 
   accountText: {
     color: 'orange',
     fontSize: moderateScale(18),
     fontWeight: 'bold',
+    zIndex:1
+
   },
 
   currencyCode: {
@@ -238,12 +307,16 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(16),
     fontWeight: 'bold',
     marginLeft: scale(5),
+    zIndex:1
+
   },
   currency: {
     color: 'orange',
     fontSize: moderateScale(18),
     fontWeight: 'bold',
     marginLeft: scale(200), // Adds spacing between "Accounts" and "EUR"
+    zIndex:1
+
   },
   container: {
     flexDirection: "row",
@@ -254,10 +327,13 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: scale(10), // Adjusted to shift content more to the left
     paddingVertical: scale(15),
+    zIndex:1
+
   },
   iconContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    
   },
   boxTwo: {
     fontSize: moderateScale(20),
@@ -268,7 +344,7 @@ const styles = StyleSheet.create({
     flexGrow: 1, // Ensures ScrollView takes all available space
   },
   newSection: {
-    marginVertical: verticalScale(20),
+    paddingVertical: verticalScale(25),
     paddingHorizontal: scale(15),
   },
   accountContainer: {
@@ -325,6 +401,27 @@ const styles = StyleSheet.create({
     color: 'orange',
     fontSize: moderateScale(18),
     fontWeight: 'bold',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: verticalScale(30), // Position it below the dropdown icon
+    right: -10, // Align with the dropdown icon's right
+    backgroundColor: '#2a2b37',
+    padding: scale(15),
+    paddingBottom: 0,
+    width: scale(150), // Increase width if necessary
+    zIndex: 999, // Ensure it's above other elements
+    borderLeftWidth: scale(2), // Set left border width
+    borderLeftColor: 'orange', // Set left border color
+    borderTopLeftRadius: scale(10), // Top left corner radius
+    borderBottomLeftRadius: scale(10), // Bottom left corner radius
+  },
+  dropdownText: {
+    fontSize: moderateScale(22),
+    color: 'white',
+    paddingVertical: verticalScale(5),
+    textAlign: 'right',
+    marginBottom: 10, // Ensures full-width
   },
 });
 

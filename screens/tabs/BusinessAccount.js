@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
 import { useNavigation } from '@react-navigation/native'; // Add navigation hook
 
-const Something = () => {
+const BusinessAccount = () => {
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const Number = "IBAn123456789"; // Placeholder for actual Number
   const amount = "R12345"; // Placeholder for actual amounts
@@ -25,14 +25,24 @@ const Something = () => {
     <View style={styles.outerContainer}>
       <View style={[styles.container, styles.overview]}>
         <View style={styles.iconContainer}>
-          <Svg height={scale(18)} width={scale(18)} viewBox="0 0 32 32">
-            <Circle cx="8" cy="8" r="4" fill={"orange"} />
-            <Circle cx="24" cy="8" r="4" fill={"orange"} />
-            <Circle cx="8" cy="24" r="4" fill={"orange"} />
-            <Circle cx="24" cy="24" r="4" fill={"orange"} />
-          </Svg>
+        <TouchableOpacity style={styles.arrowButton} onPress={() => navigation.goBack()}>
+        <Svg
+      fill={"#fff"} // Default fill color
+      height={"20px"} // Default height
+      width={"20px"} // Default width
+      viewBox="0 0 330 330" // ViewBox as defined in your SVG
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <Path
+        d="M315,150H105V90c0-6.067-3.655-11.537-9.26-13.858c-5.606-2.322-12.058-1.038-16.347,3.252l-75,75
+        c-5.858,5.858-5.858,15.355,0,21.213l75,75c2.87,2.87,6.705,4.394,10.61,4.394c1.932,0,3.881-0.374,5.737-1.142
+        c5.605-2.322,9.26-7.791,9.26-13.858v-60h210c8.284,0,15-6.716,15-15C330,156.716,323.284,150,315,150z M75,203.787L36.213,165
+        L75,126.213V203.787z"
+      />
+    </Svg>
+        </TouchableOpacity>
         </View>
-        <Text style={styles.boxTwo}>OverView</Text>
+        <Text style={styles.boxTwo}>Account</Text>
         <View style={styles.dropdownIconContainer}>
           <TouchableOpacity onPress={toggleDropdown}>
             <Svg height={scale(25)} width={scale(25)} viewBox="0 0 32 32">
@@ -61,17 +71,19 @@ const Something = () => {
       </View>
 
       {/* Account text above new section */}
-      <View style={styles.accountTextContainer}>
-        <Text style={styles.accountText}>Cards</Text>
-      </View>
+     
 
       {/* New Section for Account */}
-      {['House', 'Holiday Trip', 'Motorcycle'].map((cardName, index) => (
+      {['Business Account'].map((cardName, index) => (
         <View style={styles.newSection} key={index}>
           <View style={styles.accountContainer}>
-            <Svg style={styles.icon} height={scale(25)} width={scale(25)} viewBox="0 0 487.6 487.6">
-              <Path d="M460.3,216.55h-11.6v-69.7c0-28.5-23.2-51.6-51.6-51.6h-10.7l0.1-25.9c0-19.2-15.6-34.8-34.8-34.8H42.3c-23.1,0-42,18.6-42.3,41.7c0,0.2,0,0.4,0,0.6v341.4c0,19.2,15.6,34.8,34.8,34.8h362.4c28.5,0,51.6-23.2,51.6-51.6v-69.8h11.6c15,0,27.2-12.2,27.2-27.2v-60.7C487.5,228.75,475.3,216.55,460.3,216.55z M42.3,58.55h309.4c5.9,0,10.8,4.8,10.8,10.7l-0.1,26H42.3c-10.1,0-18.3-8.2-18.3-18.3S32.2,58.55,42.3,58.55z M424.7,401.35c0,15.2-12.4,27.6-27.6,27.6H34.7c-5.9,0-10.8-4.8-10.8-10.8v-303.1c5.6,2.7,11.8,4.2,18.4,4.2h354.8c15.2,0,27.6,12.4,27.6,27.6v69.7h-81.9c-15,0-27.2,12.2-27.2,27.2v60.7c0,15,12.2,27.2,27.2,27.2h81.9V401.35z M463.5,304.45c0,1.8-1.4,3.2-3.2,3.2H342.9c-1.8,0-3.2-1.4-3.2-3.2v-60.7c0-1.7,1.4-3.2,3.2-3.2h117.4c1.7,0,3.2,1.4,3.2,3.2L463.5,304.45z" />
-            </Svg>
+          <Svg style={styles.icon} height={scale(25)} width={scale(25)} viewBox="0 0 487.6 487.6">
+  <Path 
+    d="M460.3,216.55h-11.6v-69.7c0-28.5-23.2-51.6-51.6-51.6h-10.7l0.1-25.9c0-19.2-15.6-34.8-34.8-34.8H42.3c-23.1,0-42,18.6-42.3,41.7c0,0.2,0,0.4,0,0.6v341.4c0,19.2,15.6,34.8,34.8,34.8h362.4c28.5,0,51.6-23.2,51.6-51.6v-69.8h11.6c15,0,27.2-12.2,27.2-27.2v-60.7C487.5,228.75,475.3,216.55,460.3,216.55z M42.3,58.55h309.4c5.9,0,10.8,4.8,10.8,10.7l-0.1,26H42.3c-10.1,0-18.3-8.2-18.3-18.3S32.2,58.55,42.3,58.55z M424.7,401.35c0,15.2-12.4,27.6-27.6,27.6H34.7c-5.9,0-10.8-4.8-10.8-10.8v-303.1c5.6,2.7,11.8,4.2,18.4,4.2h354.8c15.2,0,27.6,12.4,27.6,27.6v69.7h-81.9c-15,0-27.2,12.2-27.2,27.2v60.7c0,15,12.2,27.2,27.2,27.2h81.9V401.35z M463.5,304.45c0,1.8-1.4,3.2-3.2,3.2H342.9c-1.8,0-3.2-1.4-3.2-3.2v-60.7c0-1.7,1.4-3.2,3.2-3.2h117.4c1.7,0,3.2,1.4,3.2,3.2L463.5,304.45z" 
+    fill="white" // Set the fill color to white
+  />
+</Svg>
+
             <View style={styles.accountDetails}>
               <Text style={styles.card}>{cardName}</Text>
               <Text style={styles.amount}>{amount}</Text>
@@ -116,10 +128,12 @@ const styles = StyleSheet.create({
   newSection: {
     paddingVertical: scale(25),
     paddingHorizontal: scale(15),
+    backgroundColor:"#2a2b37"
   },
   accountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    color:"white",
     justifyContent: 'space-between',
     flexWrap: 'wrap',
   },
@@ -135,22 +149,35 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginLeft: scale(5),
     flex: 1,
+    color:"white"
   },
   card: {
     fontSize: moderateScale(16),
     fontWeight: 'bold',
     flexShrink: 1, // Ensures text doesn't overflow
     maxWidth: '60%', // Limits card name width
+    color:"white"
+
+  },
+  arrowButton: {
+    borderRadius: 10,
+    padding: 10,
+    marginRight: 10, // Space between button and text
+  },
+  arrowText: {
+    color: 'orange',
+    fontSize: 30,
   },
   amount: {
     fontSize: moderateScale(14),
-    color: 'gray',
+    color:"white",
+
     marginLeft: scale(10),
     flexShrink: 1, // Prevents overflow
   },
   idNum: {
     fontSize: moderateScale(14),
-    color: 'gray',
+    color:"white",
     marginTop: verticalScale(5),
     marginLeft: scale(20),
     flexWrap: 'wrap',
@@ -195,4 +222,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Something;
+export default BusinessAccount;
