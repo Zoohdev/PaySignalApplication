@@ -1,4 +1,3 @@
-<!-- templates/transaction_list.html -->
 <h1>Transactions for Account: {{ account.account_type }}</h1>
 
 <ul>
@@ -16,4 +15,4 @@
     {% endfor %}
 </ul>
 
-<a href="{% url 'create_transaction' account.id %}">Create a new transaction</a>
+<a href="{% url 'transfer_funds' account.id %}">Transfer Funds</a>

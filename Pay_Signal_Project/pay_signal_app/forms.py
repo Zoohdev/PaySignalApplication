@@ -124,15 +124,46 @@ class AccountForm(forms.ModelForm):
         fields = ['account_type', 'currency']
         
         
-class TransactionForm(forms.Form):
-    recipient_account_number = forms.CharField(max_length=11, label="Recipient Account Number")
-    amount = forms.DecimalField(max_digits=15, decimal_places=2, label="Amount")
+class TransferFundsForm(forms.Form):
+    recipient_account = forms.ModelChoiceField(queryset=Account.objects.all(), label="Recipient Account")
+    amount = forms.DecimalField(max_digits=10, decimal_places=2, label="Amount to Transfer")
+
+    def __init__(self, *args, **kwargs):
+        self.sender_account = kwargs.pop('sender_account', None)  # Store sender_account as an instance attribute
+        super().__init__(*args, **kwargs)
+        
+        if self.sender_account:
+            # Exclude the sender account from recipient choices
+            self.fields['recipient_account'].queryset = Account.objects.exclude(id=self.sender_account.id)
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get('amount')
+        
+        # Validate that the amount is positive
+        if amount <= 0:
+            raise forms.ValidationError("Transfer amount must be greater than zero.")
+        
+        # Check if the sender has enough balance
+        if self.sender_account and self.sender_account.balance < amount:
+            raise forms.ValidationError("Insufficient balance.")
+        
+        return amount
+        
+        
+    def clean_recipient_account_number(self):
+        account_number = self.cleaned_data.get('recipient_account_number')
+        try:
+            recipient_account = Account.objects.get(account_number=account_number)
+            if recipient_account == self.sender_account:
+                raise forms.ValidationError("You cannot transfer funds to your own account.")
+            return recipient_account
+        except Account.DoesNotExist:
+            raise forms.ValidationError("Recipient account not found.")
+        
+        
     class Meta:
         model = Transaction
         fields = ['recipient_name', 'amount', 'currency', 'user_phone', 'user_location', 'recipient_account_id']
-        
-        def clean_amount(self):
-            amount = self.cleaned_data['amount']
-            if amount <= 0:
-                raise forms.ValidationError("Amount must be greater than zero.")
-            return amount
+
+class DepositForm(forms.Form):
+    amount = forms.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, label="Deposit Amount")

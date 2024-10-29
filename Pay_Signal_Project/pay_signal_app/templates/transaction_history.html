@@ -1,0 +1,30 @@
+
+<h2>Transaction History for {{ account.account_number }}</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Transaction ID</th>
+      <th>Date</th>
+      <th>Amount</th>
+      <th>Type</th>
+      <th>Recipient</th>
+      <th>Location</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for transaction in transactions %}
+    <tr>
+      <td>{{ transaction.transaction_id }}</td>
+      <td>{{ transaction.date_of_transaction }}</td>
+      <td>{{ transaction.amount }}</td>
+      <td>{{ transaction.transaction_type }}</td>
+      <td>{{ transaction.recipient_name }}</td>
+      <td>{{ transaction.user_location }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="6">No transactions found</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

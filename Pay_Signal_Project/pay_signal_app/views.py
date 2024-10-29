@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth import login as auth_login, update_session_auth_hash
 from django.contrib import messages
+from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
 from django.urls import reverse
@@ -11,10 +12,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
-from .forms import UserRegistrationForm
+from .forms import UserRegistrationForm, AccountForm, TransferFundsForm, DepositForm
 from .token import email_verification_token
 from .models import Account, Transaction
-from .forms import AccountForm, TransactionForm
 
 # Home page view
 def home(request):
@@ -141,73 +141,114 @@ def account_list(request):
     accounts = Account.objects.filter(user=request.user)  # Filter accounts for the logged-in user
     return render(request, 'account_list.html', {'accounts': accounts})
 
-
-
 @login_required
-def create_transaction(request, account_id):
-    account = Account.objects.get(id=account_id)
-    
+def transfer_funds(request, account_id):
+    sender_account = get_object_or_404(Account, id=account_id, user=request.user)
+
     if request.method == 'POST':
-        form = TransactionForm(request.POST)
-        
+        form = TransferFundsForm(request.POST, sender_account=sender_account)
         if form.is_valid():
             recipient_account_number = form.cleaned_data['recipient_account_number']
             amount = form.cleaned_data['amount']
-            user_account = Account.objects.get(id=account_id)
 
-            # Validate the amount is greater than 0 and does not exceed user balance
-            if amount <= 0:
-                messages.error(request, "Amount must be greater than zero.")
-                return render(request, 'create_transaction.html', {'form': form, 'account': account})
-            
-            if amount > user_account.balance:
-                messages.error(request, "Insufficient balance for this transaction.")
-                return render(request, 'create_transaction.html', {'form': form, 'account': account})
-            
-            # Check if the recipient account exists based on the account_number
+            # Check if the recipient account exists
             try:
                 recipient_account = Account.objects.get(account_number=recipient_account_number)
                 
-                # Create the transaction
-                transaction = Transaction.objects.create(
-                    account=user_account,
-                    recipient_account_number=recipient_account.account_number,
-                    recipient_name=recipient_account.user.username,  # Show recipient's name
-                    amount=amount,
-                    transaction_type="Transfer",
-                    user_phone=user_account.user.phone_number,
-                    user_location="User Location"  # Optionally, dynamically set the user's location
-                )
+                # Check if the sender has enough balance
+                if sender_account.balance < amount:
+                    messages.error(request, "Insufficient balance for this transfer.")
+                    return redirect('transfer_funds', account_id=sender_account.id)
+                
+                # Perform the transfer inside a database transaction for atomicity
+                with transaction.atomic():
+                    # Deduct from sender's account
+                    sender_account.balance -= amount
+                    sender_account.save()
 
-                # Deduct the amount from the sender's account balance
-                user_account.balance -= amount
-                user_account.save()
+                    # Add to recipient's account
+                    recipient_account.balance += amount
+                    recipient_account.save()
 
-                # Redirect to receipt view with transaction ID
-                return redirect('transaction_receipt', transaction_id=transaction.transaction_id)
+                    # Create transaction entries for both sender and recipient
+                    Transaction.objects.create(
+                        account=sender_account,
+                        recipient_account_number= recipient_account.account_number,
+                        recipient_name=recipient_account.user.username,
+                        amount=amount,
+                        transaction_type='Transfer',
+                        description=f'Transfer to {recipient_account.user.username}'
+                    )
+
+                    Transaction.objects.create(
+                        account=recipient_account,
+                        recipient_account_number=sender_account.account_number,
+                        recipient_name=sender_account.user.username,
+                        amount=amount,
+                        transaction_type='Deposit',
+                        description=f'Received from {sender_account.user.username}'
+                    )
+
+                messages.success(request, f'Successfully transferred {amount} to {recipient_account.user.username}.')
+                return redirect('account_detail', account_id=sender_account.id)
 
             except Account.DoesNotExist:
-                messages.error(request, "User not registered.")
-                return render(request, 'create_transaction.html', {'form': form, 'account': account})
-    
+                messages.error(request, "The recipient account number is invalid.")
+                return redirect('transfer_funds', account_id=sender_account.id)
     else:
-        form = TransactionForm()
-    
-    return render(request, 'create_transaction.html', {'form': form, 'account': account})
+        form = TransferFundsForm
+
+    return render(request, 'transfer_funds.html', {'form': form, 'account': sender_account})
+
 @login_required
 def transaction_list(request, account_id):
-    """
-    Displays a list of transactions for a given account, belonging to the logged-in user.
-
-    :param request: The HTTP request
-    :param account_id: The ID of the account for which to show transactions
-    :return: An HTTP response with a rendered template
-    """
     account = get_object_or_404(Account, id=account_id, user=request.user)  # Ensure the account belongs to the logged-in user
     transactions = Transaction.objects.filter(account=account)  # Filter transactions for the account
     return render(request, 'transaction_list.html', {'account': account, 'transactions': transactions})
 
-
 def transaction_receipt(request, transaction_id):
     transaction = Transaction.objects.get(transaction_id=transaction_id)
-    return redirect('transaction_receipt', transaction_id=transaction.transaction_id)
+    return render(request, 'transaction_receipt.html', {transaction_id:transaction.transaction_id})
+
+@login_required
+def fund_account(request, account_id):
+    account = get_object_or_404(Account, id=account_id)
+
+    if request.method == "POST":
+        form = DepositForm(request.POST)
+        if form.is_valid():
+            amount = form.cleaned_data['amount']
+            account.balance += amount
+            account.save()
+
+            # Create the funding transaction
+            Transaction.objects.create(
+                account=account,
+                amount=amount,
+                transaction_type='Deposit',  # Marking this transaction as a 'Deposit'
+                description='Account funding'
+            )
+
+            messages.success(request, "Account successfully funded!")
+            return redirect('account_detail', account_id=account.id)
+    else:
+        form = DepositForm()
+
+    return render(request, 'fund_account.html', {'account': account, 'form': form})
+
+@login_required
+def transaction_history(request, account_id):
+    account = Account.objects.get(id=account_id)
+    transactions = account.transactions.all().order_by('-date_of_transaction')  # Order by most recent
+
+    return render(request, 'transaction_history.html', {
+        'account': account,
+        'transactions': transactions
+    })
+
+def account_detail(request, account_id):
+    account = get_object_or_404(Account, id=account_id)
+    context = {
+        'account': account
+    }
+    return render(request, 'account_detail.html', {'account': account})

@@ -26,7 +26,6 @@ from django.contrib.auth import views as auth_views
 
 # Define URL patterns for the app
 urlpatterns = [
-    path('admin/', admin.site.urls),
     path('register/', views.register, name='register'),
     path('login/', views.login_view, name='login'),
     path('', views.home, name='home'),
@@ -37,10 +36,10 @@ urlpatterns = [
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
     path('resend-verification/<int:user_id>/', views.resend_verification_email, name='resend_verification_email'),
     path('create-account/', views.create_account, name='create_account'),
-    path('account/<int:account_id>/create-transaction/', views.create_transaction, name='create_transaction'),
+    path('account/<int:account_id>/transfer/', views.transfer_funds, name='transfer_funds'),
     path('accounts/', views.account_list, name='account_list'),
     path('accounts/<int:account_id>/transactions/', views.transaction_list, name='transaction_list'),
     path('receipt/<str:transaction_id>/', views.transaction_receipt, name='transaction_receipt'),
-
-
+    path('account/<int:account_id>/fund/', views.fund_account, name='fund_account'),
+    path('account/<int:account_id>/', views.account_detail, name='account_detail'),
 ]
