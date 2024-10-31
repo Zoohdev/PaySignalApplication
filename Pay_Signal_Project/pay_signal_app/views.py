@@ -144,42 +144,51 @@ def account_list(request):
 @login_required
 def transfer_funds(request, account_id):
     sender_account = get_object_or_404(Account, id=account_id, user=request.user)
-
+    
     if request.method == 'POST':
         form = TransferFundsForm(request.POST, sender_account=sender_account)
+        
         if form.is_valid():
-            recipient_account_number = form.cleaned_data['recipient_account_number']
-            amount = form.cleaned_data['amount']
+            recipient_account_number = form.cleaned_data.get('recipient_account_number')
+            amount = form.cleaned_data.get('amount')
 
-            # Check if the recipient account exists
+            if not recipient_account_number or not amount:
+                messages.error(request, "Invalid form data.")
+                return redirect('transfer_funds', account_id=sender_account.id)
+
             try:
                 recipient_account = Account.objects.get(account_number=recipient_account_number)
-                
-                # Check if the sender has enough balance
-                if sender_account.balance < amount:
-                    messages.error(request, "Insufficient balance for this transfer.")
-                    return redirect('transfer_funds', account_id=sender_account.id)
-                
-                # Perform the transfer inside a database transaction for atomicity
+            except Account.DoesNotExist:
+                messages.error(request, "The recipient account number is invalid.")
+                return redirect('transfer_funds', account_id=sender_account.id)
+
+            # Check if sender has sufficient balance
+            if sender_account.balance < amount:
+                messages.error(request, "Insufficient balance for this transfer.")
+                return redirect('transfer_funds', account_id=sender_account.id)
+
+            try:
                 with transaction.atomic():
-                    # Deduct from sender's account
+                    # Deduct from sender
                     sender_account.balance -= amount
                     sender_account.save()
+                    print(f"Sender's new balance: {sender_account.balance}")
 
-                    # Add to recipient's account
+                    # Credit recipient
                     recipient_account.balance += amount
                     recipient_account.save()
+                    print(f"Recipient's new balance: {recipient_account.balance}")
 
-                    # Create transaction entries for both sender and recipient
+                    # Create transactions
                     Transaction.objects.create(
                         account=sender_account,
-                        recipient_account_number= recipient_account.account_number,
+                        recipient_account_number=recipient_account.account_number,
                         recipient_name=recipient_account.user.username,
                         amount=amount,
                         transaction_type='Transfer',
                         description=f'Transfer to {recipient_account.user.username}'
                     )
-
+                    
                     Transaction.objects.create(
                         account=recipient_account,
                         recipient_account_number=sender_account.account_number,
@@ -192,11 +201,12 @@ def transfer_funds(request, account_id):
                 messages.success(request, f'Successfully transferred {amount} to {recipient_account.user.username}.')
                 return redirect('account_detail', account_id=sender_account.id)
 
-            except Account.DoesNotExist:
-                messages.error(request, "The recipient account number is invalid.")
+            except Exception as e:
+                messages.error(request, f"An error occurred during the transfer: {str(e)}")
                 return redirect('transfer_funds', account_id=sender_account.id)
+    
     else:
-        form = TransferFundsForm
+        form = TransferFundsForm(sender_account=sender_account)
 
     return render(request, 'transfer_funds.html', {'form': form, 'account': sender_account})
 
