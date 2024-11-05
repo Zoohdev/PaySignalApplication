@@ -42,4 +42,5 @@ urlpatterns = [
     path('receipt/<str:transaction_id>/', views.transaction_receipt, name='transaction_receipt'),
     path('account/<int:account_id>/fund/', views.fund_account, name='fund_account'),
     path('account/<int:account_id>/', views.account_detail, name='account_detail'),
+    path('logout/', views.logout_view, name='logout'),
 ]
