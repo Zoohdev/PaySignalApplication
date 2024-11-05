@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
-from django.contrib.auth import login as auth_login, update_session_auth_hash
+from django.contrib.auth import login as auth_login, update_session_auth_hash, logout
 from django.contrib import messages
 from django.db import transaction
 from django.core.mail import send_mail
@@ -262,3 +262,9 @@ def account_detail(request, account_id):
         'account': account
     }
     return render(request, 'account_detail.html', {'account': account})
+
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')  # Redirect to login page after logout
