@@ -134,11 +134,11 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'paysignalapp@gmail.com'  # Your email
-EMAIL_HOST_PASSWORD = 'ukzt cxsi slfa ozno'# Your email password
+EMAIL_HOST_PASSWORD = 'alee daae zbhu yeqk'# Your email password
 
 # SESSION MANAGEMENT
 SESSION_COOKIE_AGE = 900  # 15 minutes, or set according to your needs
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # End session on browser close
-SESSION_COOKIE_SECURE = True  # Only send cookies over HTTPS
-CSRF_COOKIE_SECURE = True     # Secure CSRF cookies as well
+SESSION_COOKIE_SECURE = False  # Only send cookies over HTTPS, set to True in production
+CSRF_COOKIE_SECURE = False     # Secure CSRF cookies as well, set to True in production
 SESSION_COOKIE_HTTPONLY = True

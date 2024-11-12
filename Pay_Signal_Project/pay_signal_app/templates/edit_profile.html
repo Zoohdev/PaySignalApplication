@@ -1,0 +1,42 @@
+<h2>Edit Profile</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    
+    <div>
+        <label for="username">Username:</label>
+        {{ form.username }}
+    </div>
+    
+    <div>
+        <label for="email">Email:</label>
+        {{ form.email }}
+    </div>
+    
+    <div>
+        <label for="password">Password:</label>
+        {{ form.password }}
+    </div>
+    
+    <button type="submit">Save Changes</button>
+</form>
+
+<h3>Uneditable Information</h3>
+<div>
+    <p><strong>Date of Birth:</strong> {{ uneditable_fields.date_of_birth }}</p>
+    <p><strong>Registered On:</strong> {{ uneditable_fields.date_joined }}</p>
+    <p><strong>First Name:</strong> {{ uneditable_fields.firstname }}</p>
+    <p><strong>Middle Name:</strong> {{ uneditable_fields.middlename }}</p>
+    <p><strong>Last Name:</strong> {{ uneditable_fields.lastname }}</p>
+    <p><strong>Country:</strong> {{ uneditable_fields.country }}</p>
+    <p><strong>Base Currency:</strong> {{ uneditable_fields.currency }}</p>
+    <p><strong>Account Status:</strong> {{ uneditable_fields.is_verified_status|yesno:"Verified,Not Verified" }}</p>
+
+    <h4>Account Details</h4>
+    <ul>
+        {% for account in uneditable_fields.accounts %}
+            <li>Account Number: {{ account.account_number }} - {{ account.account_type }}</li>
+        {% endfor %}
+    </ul>
+</div>

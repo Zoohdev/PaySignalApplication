@@ -1,0 +1,61 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+</head>
+<body>
+    <h1>Welcome, {{ user.username }}!</h1>
+
+    <h2>Profile Information</h2>
+    <p><strong>Username:</strong> {{ user.username }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Phone Number:</strong> {{ user.phone_number }}</p>
+
+
+    <h2>Account Overview</h2>
+    {% if user_accounts %}
+        <ul>
+            {% for account in user_accounts %}
+                <li>
+                    <strong>Account Number:</strong> {{ account.account_number }} <br>
+                    <strong>Account Type:</strong> {{ account.account_type }} <br>
+                    <strong>Balance:</strong> {{ account.balance }} {{ account.currency }} <br>
+                    <strong>Date Opened:</strong> {{ account.date_opened }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No accounts available.</p>
+    {% endif %}
+
+    <h2>Recent Transactions</h2>
+    {% if transactions %}
+        <table>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Recipient</th>
+                <th>Type</th>
+            </tr>
+            {% for transaction in transactions %}
+                <tr>
+                    <td>{{ transaction.date_of_transaction }}</td>
+                    <td>{{ transaction.description }}</td>
+                    <td>{{ transaction.amount }} {{ transaction.currency }}</td>
+                    <td>{{ transaction.recipient_name }}</td>
+                    <td>{{ transaction.transaction_type }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No recent transactions available.</p>
+    {% endif %}
+
+
+    <p><a href="{% url 'edit_profile' %}">Edit Profile</a></p>
+</body>
+</html>

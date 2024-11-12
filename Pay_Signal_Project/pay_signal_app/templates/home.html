@@ -8,15 +8,27 @@
 <body>
     
 
+    
+
+    
+    <h1>Welcome to PaySignal</h1> <br>
+
+    <!-- Link to the Dashboard -->
+    <p><a href="{% url 'dashboard' %}">Go to Dashboard</a></p> <br>
+
+    <!-- Link to Edit Profile -->
+    <p><a href="{% url 'edit_profile' %}">Edit Your Profile</a></p> <br>
+
     <p>
-    Go to the register, login form by changeing the url 
-    <br>
+        Go to the register, login form by changeing the url 
+        <br>
 
-    <a href="{% url 'account_list' %}">My Accounts</a> 
+        <a href="{% url 'account_list' %}">My Accounts</a> 
 
-    <br> <a href="{% url 'logout' %}">Logout</a>
+        <br> <a href="{% url 'logout' %}">Logout</a>
 
     </p>
+    
 </body>
 <style>
   html, body {

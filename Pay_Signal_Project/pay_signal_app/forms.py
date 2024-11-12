@@ -1,5 +1,5 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import User, Account, Transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -159,3 +159,13 @@ class TransferFundsForm(forms.Form):
 
 class DepositForm(forms.Form):
     amount = forms.DecimalField(max_digits=15, decimal_places=2, min_value=0.01, label="Deposit Amount")
+    
+class ProfileEditForm(UserChangeForm):
+    password = forms.CharField(widget=forms.PasswordInput, required=False)
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password']  # Editable fields
+        widgets = {
+            'password': forms.PasswordInput(attrs={'placeholder': 'Enter new password'}),
+        }

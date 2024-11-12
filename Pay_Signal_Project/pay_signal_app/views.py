@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserChangeForm
 from django.contrib.auth import login as auth_login, update_session_auth_hash, logout
 from django.contrib import messages
 from django.db import transaction
@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
-from .forms import UserRegistrationForm, AccountForm, TransferFundsForm, DepositForm
+from .forms import UserRegistrationForm, AccountForm, TransferFundsForm, DepositForm, ProfileEditForm
 from .token import email_verification_token
 from .models import Account, Transaction
 
@@ -144,42 +144,29 @@ def account_list(request):
 @login_required
 def transfer_funds(request, account_id):
     sender_account = get_object_or_404(Account, id=account_id, user=request.user)
-    
     if request.method == 'POST':
         form = TransferFundsForm(request.POST, sender_account=sender_account)
-        
         if form.is_valid():
             recipient_account_number = form.cleaned_data.get('recipient_account_number')
             amount = form.cleaned_data.get('amount')
-
             if not recipient_account_number or not amount:
                 messages.error(request, "Invalid form data.")
                 return redirect('transfer_funds', account_id=sender_account.id)
-
             try:
                 recipient_account = Account.objects.get(account_number=recipient_account_number)
             except Account.DoesNotExist:
                 messages.error(request, "The recipient account number is invalid.")
                 return redirect('transfer_funds', account_id=sender_account.id)
-
-            # Check if sender has sufficient balance
             if sender_account.balance < amount:
                 messages.error(request, "Insufficient balance for this transfer.")
                 return redirect('transfer_funds', account_id=sender_account.id)
-
             try:
                 with transaction.atomic():
-                    # Deduct from sender
                     sender_account.balance -= amount
                     sender_account.save()
-                    print(f"Sender's new balance: {sender_account.balance}")
-
-                    # Credit recipient
                     recipient_account.balance += amount
                     recipient_account.save()
-                    print(f"Recipient's new balance: {recipient_account.balance}")
-
-                    # Create transactions
+                    # Create transactions for sender and recipient
                     Transaction.objects.create(
                         account=sender_account,
                         recipient_account_number=recipient_account.account_number,
@@ -188,7 +175,6 @@ def transfer_funds(request, account_id):
                         transaction_type='Transfer',
                         description=f'Transfer to {recipient_account.user.username}'
                     )
-                    
                     Transaction.objects.create(
                         account=recipient_account,
                         recipient_account_number=sender_account.account_number,
@@ -197,17 +183,13 @@ def transfer_funds(request, account_id):
                         transaction_type='Deposit',
                         description=f'Received from {sender_account.user.username}'
                     )
-
                 messages.success(request, f'Successfully transferred {amount} to {recipient_account.user.username}.')
                 return redirect('account_detail', account_id=sender_account.id)
-
             except Exception as e:
-                messages.error(request, f"An error occurred during the transfer: {str(e)}")
+                messages.error(request, f"An error occurred during the transfer: {e}")
                 return redirect('transfer_funds', account_id=sender_account.id)
-    
     else:
         form = TransferFundsForm(sender_account=sender_account)
-
     return render(request, 'transfer_funds.html', {'form': form, 'account': sender_account})
 
 @login_required
@@ -268,3 +250,80 @@ def account_detail(request, account_id):
 def logout_view(request):
     logout(request)
     return redirect('login')  # Redirect to login page after logout
+
+
+@login_required
+def user_dashboard(request):
+    # Get accounts associated with the logged-in user
+    user_accounts = Account.objects.filter(user=request.user)
+
+    # Retrieve transactions for these accounts
+    transactions = Transaction.objects.filter(account__in=user_accounts).order_by('-date_of_transaction')[:10]
+
+    context = {
+        'transactions': transactions,
+        'user_accounts': user_accounts,
+    }
+    return render(request, 'dashboard.html', context)
+
+@login_required
+def edit_profile(request):
+    user = request.user
+    old_email = user.email  # Store the original email to compare
+
+    if request.method == 'POST':
+        form = ProfileEditForm(request.POST, instance=user)
+        if form.is_valid():
+            updated_user = form.save(commit=False)
+            new_email = form.cleaned_data['email']
+
+            # Check if the email was changed
+            if new_email != old_email:
+                updated_user.is_verified_status = False  # Set as unverified for new email
+                updated_user.save()
+
+                # Generate verification email
+                current_site = get_current_site(request)
+                subject = 'Verify Your New Email Address'
+                uid = urlsafe_base64_encode(force_bytes(updated_user.uuid))
+                token = email_verification_token.make_token(updated_user)
+                activation_link = reverse('activate', kwargs={'uidb64': uid, 'token': token})
+                activation_url = f'http://127.0.0.1:8000{activation_link}'
+                message = f'Hello {updated_user.username},\n\nPlease verify your new email address by clicking the link:\n{activation_url}'
+
+                send_mail(
+                    subject,
+                    message,
+                    settings.EMAIL_HOST_USER,
+                    [new_email],
+                    fail_silently=False,
+                )
+
+                messages.success(request, "Profile updated successfully. Please verify your new email address.")
+            else:
+                updated_user.save()  # Save normally if email hasn't changed
+                messages.success(request, "Profile updated successfully.")
+            return redirect('dashboard')
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        form = ProfileEditForm(instance=user)
+
+    # Additional uneditable fields to display
+    uneditable_fields = {
+        'date_of_birth': user.date_of_birth,
+        'date_joined': user.date_joined,
+        'firstname': user.firstname,
+        'middlename': user.middlename,
+        'lastname': user.lastname,
+        'country': user.country,
+        'currency': user.currency,
+        'is_verified_status': user.is_verified_status,
+        'accounts': user.accounts.all(),  # To display associated accounts, if needed
+    }
+
+    context = {
+        'form': form,
+        'uneditable_fields': uneditable_fields,
+    }
+    return render(request, 'edit_profile.html', context)

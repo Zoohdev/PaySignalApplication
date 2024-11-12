@@ -117,6 +117,7 @@ class Transaction(models.Model):
         # Save the updated balance and transaction
         self.account.save()
         super().save(*args, **kwargs)
-
+        
+        
     def __str__(self):
         return f"Transaction {self.transaction_id} - {self.amount} {self.currency}"
