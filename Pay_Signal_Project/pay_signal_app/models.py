@@ -7,6 +7,7 @@ from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+
 # Choices for currency and account types
 CURRENCY_CHOICES = [
     ('USD', 'US Dollar'),
@@ -40,7 +41,6 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=15, unique=True)
     date_of_birth = models.DateField()
     country = models.CharField(max_length=50)
-    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
     is_verified_status = models.BooleanField(default=False)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
@@ -121,3 +121,14 @@ class Transaction(models.Model):
         
     def __str__(self):
         return f"Transaction {self.transaction_id} - {self.amount} {self.currency}"
+    
+    
+    
+class EmailVerificationToken(models.Model):
+    token = models.CharField(max_length=255, unique=True, default=uuid.uuid4)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_verification_tokens')
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Token({self.token}) for {self.user.email}"

@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect, get_object_or_404
+'''from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, UserChangeForm
 from django.contrib.auth import login as auth_login, update_session_auth_hash, logout
 from django.contrib import messages
@@ -326,4 +326,89 @@ def edit_profile(request):
         'form': form,
         'uneditable_fields': uneditable_fields,
     }
-    return render(request, 'edit_profile.html', context)
+    return render(request, 'edit_profile.html', context)'''
+    
+    
+
+
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from django.core.mail import send_mail
+from django.conf import settings
+from django.shortcuts import get_object_or_404
+from django.utils.timezone import now
+from datetime import timedelta
+from .serializers import UserRegistrationSerializer
+from .models import User, EmailVerificationToken
+from .utils import generate_email_verification_token, is_token_valid, cleanup_expired_tokens
+import logging
+
+logger = logging.getLogger(__name__)
+
+class UserRegistrationView(APIView):
+    """
+    API View for user registration and sending email verification.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = UserRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # Generate email verification token
+            token = generate_email_verification_token(user)
+
+            # Build verification URL
+            verification_url = f"http://localhost:8000/api/users/verify-email/?token={token}"
+
+            # Send verification email
+            try:
+                send_mail(
+                    subject="Verify Your Email",
+                    message=f"Hi {user.username},\n\nPlease click the link below to verify your email:\n{verification_url}",
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[user.email],
+                )
+            except Exception as e:
+                logger.error(f"Failed to send email to {user.email}: {e}")
+                return Response(
+                    {"error": "User registered, but email could not be sent."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            return Response(
+                {"message": "User registered successfully. Please verify your email."},
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VerifyEmailView(APIView):
+    """
+    API View for verifying email using a token.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token_value = request.GET.get("token")
+        if not token_value:
+            return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate token
+        is_valid, result = is_token_valid(token_value)
+        if not is_valid:
+            return Response({"error": result}, status=status.HTTP_400_BAD_REQUEST)
+
+        token_obj = result
+        token_obj.is_used = True
+        token_obj.save()
+
+        # Activate the user and verify email
+        user = get_object_or_404(User, email=token_obj.user.email)
+        user.is_verified = True
+        user.save()
+
+        return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)

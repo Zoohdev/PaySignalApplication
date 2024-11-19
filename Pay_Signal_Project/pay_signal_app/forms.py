@@ -1,4 +1,4 @@
-from django import forms
+'''from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from .models import User, Account, Transaction
 from django.core.exceptions import ValidationError
@@ -168,4 +168,4 @@ class ProfileEditForm(UserChangeForm):
         fields = ['username', 'email', 'password']  # Editable fields
         widgets = {
             'password': forms.PasswordInput(attrs={'placeholder': 'Enter new password'}),
-        }
+        }'''
