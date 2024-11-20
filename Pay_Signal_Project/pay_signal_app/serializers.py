@@ -45,3 +45,25 @@ class UserRegistrationView(APIView):
             serializer.save()
             return Response({"message": "User registered successfully. Please verify your email."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+    
+class LoginSerializer(serializers.Serializer):
+    """
+    Serializer for login.
+    """
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(write_only=True, required=True)
+
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
+
+        if not email or not password:
+            raise serializers.ValidationError("Both email and password are required.")
+
+        user = User.objects.filter(email=email).first()
+        if not user or not user.check_password(password):
+            raise serializers.ValidationError("Invalid email or password.")
+
+        return data

@@ -2,46 +2,30 @@ from datetime import timedelta
 from django.utils.timezone import now
 from .models import EmailVerificationToken
 import uuid
-
+from django.core.mail import send_mail
+from django.conf import settings
 
 def generate_email_verification_token(user):
     """
-    Generate a unique email verification token for the specified user.
+    Generate a unique token for email verification.
     """
-    # Create a new unique token
-    token = EmailVerificationToken.objects.create(user=user, token=uuid.uuid4())
+    token = EmailVerificationToken.objects.create(user=user, token=str(uuid.uuid4()), created_at=now())
     return token.token
 
-
-def is_token_valid(token):
+def send_verification_email(email, token):
     """
-    Validate the token:
-    - Check if it exists
-    - Ensure it is not expired
-    - Ensure it has not been used
+    Send an email verification link.
     """
-    try:
-        token_obj = EmailVerificationToken.objects.get(token=token)
-    except EmailVerificationToken.DoesNotExist:
-        return False, "Invalid token."
+    verification_url = f"http://localhost:8000/api/users/verify-email/?token={token}"
+    subject = "Verify Your Email"
+    message = f"Please verify your email by clicking this link: {verification_url}"
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
 
-    # Check if token is expired
-    if token_obj.created_at + timedelta(minutes=10) < now():
-        return False, "Token has expired."
-
-    # Check if token is already used
-    if token_obj.is_used:
-        return False, "Token has already been used."
-
-    return True, token_obj
-
-
-def cleanup_expired_tokens():
+def send_action_confirmation_email(email, token):
     """
-    Delete all expired tokens from the database.
-    Tokens are considered expired if they are older than 10 minutes.
+    Send a confirmation email post-login.
     """
-    expiry_time = now() - timedelta(minutes=10)
-    expired_tokens = EmailVerificationToken.objects.filter(created_at__lt=expiry_time)
-    count = expired_tokens.delete()[0]  # Returns a tuple: (number of objects deleted, _)
-    return count
+    confirmation_url = f"http://localhost:8000/api/users/confirm-action/?token={token}"
+    subject = "Confirm Your Action"
+    message = f"To confirm your action, please click this link (valid for 15 minutes): {confirmation_url}"
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])

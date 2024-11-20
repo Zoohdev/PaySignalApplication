@@ -333,17 +333,19 @@ def edit_profile(request):
 
 from rest_framework import status
 from rest_framework.response import Response
+from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from django.core.mail import send_mail
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.hashers import check_password
 from django.conf import settings
-from django.shortcuts import get_object_or_404
-from django.utils.timezone import now
-from datetime import timedelta
-from .serializers import UserRegistrationSerializer
+from django.utils.timezone import now, timedelta
+from .serializers import UserRegistrationSerializer, LoginSerializer
 from .models import User, EmailVerificationToken
-from .utils import generate_email_verification_token, is_token_valid, cleanup_expired_tokens
+from .utils import generate_email_verification_token, send_verification_email, send_action_confirmation_email
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -397,18 +399,96 @@ class VerifyEmailView(APIView):
         if not token_value:
             return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate token
-        is_valid, result = is_token_valid(token_value)
-        if not is_valid:
-            return Response({"error": result}, status=status.HTTP_400_BAD_REQUEST)
+        # Get the token object from the database
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token_value)
+        except EmailVerificationToken.DoesNotExist:
+            return Response({"error": "Invalid token."}, status=status.HTTP_400_BAD_REQUEST)
 
-        token_obj = result
+        # Check if the token is expired (30 minutes max)
+        token_age = now() - token_obj.created_at
+        logger.debug(f"Token created at: {token_obj.created_at}, Token age: {token_age}")
+
+        # If token is older than 30 m, it's expired
+        if token_age > timedelta(minutes=30):
+            return Response({"error": "Token has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if the token has already been used
+        if token_obj.is_used:
+            return Response({"error": "Token has already been used."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark the token as used
         token_obj.is_used = True
         token_obj.save()
 
-        # Activate the user and verify email
-        user = get_object_or_404(User, email=token_obj.user.email)
-        user.is_verified = True
+        # Activate the user and mark the email as verified
+        user = token_obj.user
+        user.is_verified_status = True  # Ensure the correct field for user verification status
         user.save()
 
         return Response({"message": "Email verified successfully!"}, status=status.HTTP_200_OK)
+    
+    
+class LoginView(APIView):
+    """
+    Handles user login with username and password.
+    Ensures the user's email is verified before allowing login.
+    """
+    
+    permission_classes = [AllowAny]
+    def post(self, request, *args, **kwargs):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(request, username=username, password=password)
+
+        if user:
+            # Check email verification status
+            if not user.is_verified_status:
+                # Send verification email
+                token = generate_email_verification_token(user)
+                send_verification_email(user.email, token)
+
+                return Response(
+                    {"error": "Email not verified. A verification email has been sent to your registered email address."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # If email is verified, log in the user
+            login(request, user)
+            return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
+
+        return Response({"error": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    
+
+'''class ConfirmActionView(APIView):
+    """
+    API View for confirming an action using a token.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        token_value = request.GET.get("token")
+        if not token_value:
+            return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate token
+        try:
+            token_obj = EmailVerificationToken.objects.get(token=token_value, is_used=False)
+        except EmailVerificationToken.DoesNotExist:
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if token is within validity period (15 minutes)
+        token_age = now() - token_obj.created_at
+        if token_age > timedelta(minutes=15):
+            return Response({"error": "Token has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark token as used
+        token_obj.is_used = True
+        token_obj.save()
+
+        return Response({"message": "Action confirmed successfully!"}, status=status.HTTP_200_OK)'''
