@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import UserRegistrationView
-from .views import VerifyEmailView, LoginView, ConfirmActionView, create_account, currency_converter, make_transaction
+from .views import VerifyEmailView, LoginView, ConfirmActionView, create_transaction, create_account, currency_converter, make_transaction
 
 urlpatterns = [
    path('register/', UserRegistrationView.as_view(), name='register'),
@@ -10,5 +10,5 @@ urlpatterns = [
    path('create-account/', create_account, name='create_account'),
    path('convert-currency/', currency_converter, name='currency_converter'),
    path('make-transaction/', make_transaction, name='make_transaction'),
-   
+    path('transactions/create/', create_transaction, name='create_transaction'),
 ]

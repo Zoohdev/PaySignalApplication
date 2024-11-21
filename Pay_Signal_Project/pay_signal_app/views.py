@@ -343,7 +343,7 @@ from django.core.mail import send_mail
 from django.contrib.auth import authenticate, login
 from django.conf import settings
 from django.utils.timezone import now, timedelta
-from .serializers import UserRegistrationSerializer, LoginSerializer, ConfirmationCodeSerializer, AccountSerializer
+from .serializers import UserRegistrationSerializer, LoginSerializer, ConfirmationCodeSerializer, AccountSerializer, TransactionSerializer
 from .models import User,Transaction, EmailVerificationToken, ConfirmationCode, Account
 from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email
 import logging
@@ -579,6 +579,13 @@ def make_transaction(request):
     return Response({"message": "Transaction successful", "transaction_id": transaction.transaction_id}, status=status.HTTP_201_CREATED)
 
 
-
+@api_view(['POST'])
+def create_transaction(request):
+    if request.method == 'POST':
+        serializer = TransactionSerializer(data=request.data)
+        if serializer.is_valid():
+            transaction = serializer.save()
+            return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
