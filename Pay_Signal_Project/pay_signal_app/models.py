@@ -5,6 +5,8 @@ import random
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.utils import timezone
+from django.utils.timezone import now
+from datetime import timedelta
 from django.core.exceptions import ValidationError
 
 
@@ -162,3 +164,14 @@ class EmailVerificationToken(models.Model):
 
     def __str__(self):
         return f"Token({self.token}) for {self.user.email}"
+    
+    
+    
+class ConfirmationCode(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    code = models.CharField(max_length=8)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def is_valid(self):
+        return now() <= self.expires_at

@@ -336,15 +336,18 @@ from rest_framework.response import Response
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.hashers import check_password
 from django.conf import settings
 from django.utils.timezone import now, timedelta
-from .serializers import UserRegistrationSerializer, LoginSerializer
-from .models import User, EmailVerificationToken
-from .utils import generate_email_verification_token, send_verification_email, send_action_confirmation_email
+from .serializers import UserRegistrationSerializer, LoginSerializer, ConfirmationCodeSerializer, AccountSerializer
+from .models import User,Transaction, EmailVerificationToken, ConfirmationCode, Account
+from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email
 import logging
+from django.urls import reverse
 
 
 logger = logging.getLogger(__name__)
@@ -436,59 +439,146 @@ class LoginView(APIView):
     """
     
     permission_classes = [AllowAny]
-    def post(self, request, *args, **kwargs):
-        username = request.data.get("username")
-        password = request.data.get("password")
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not username or not password:
-            return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        username = serializer.validated_data.get('username')
+        password = serializer.validated_data.get('password')
 
-        user = authenticate(request, username=username, password=password)
+        try:
+            # Retrieve user based on the provided username
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response({"error": "No account found with the given username."}, status=status.HTTP_404_NOT_FOUND)
 
-        if user:
-            # Check email verification status
-            if not user.is_verified_status:
-                # Send verification email
-                token = generate_email_verification_token(user)
-                send_verification_email(user.email, token)
+        if not user.check_password(password):
+            return Response({"error": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
 
-                return Response(
-                    {"error": "Email not verified. A verification email has been sent to your registered email address."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.is_verified_status:
+            # Generate confirmation code and send it to the user's email
+            code = generate_confirmation_code(user)
+            send_action_confirmation_email(user.email, code)
 
-            # If email is verified, log in the user
-            login(request, user)
-            return Response({"message": "Login successful."}, status=status.HTTP_200_OK)
-
-        return Response({"error": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
+            # Provide a URL for the user to input their confirmation code
+            redirect_url = reversed("verify-confirmation-code")  # Add this endpoint in `urls.py`
+            return JsonResponse(
+                {
+                    "message": f"A confirmation code has been sent to {user.email}.",
+                    "redirect_url": request.build_absolute_uri(redirect_url)
+                },
+                status=status.HTTP_200_OK
+            )
+        else:
+            return Response({"error": "Email not verified. Please verify your email first."}, status=status.HTTP_403_FORBIDDEN)
     
     
 
-'''class ConfirmActionView(APIView):
+class ConfirmActionView(APIView):
     """
-    API View for confirming an action using a token.
+    API View to confirm action using a confirmation code.
     """
-    permission_classes = [AllowAny]
+    
+    permission_classes = [AllowAny]  # Override default permissions
+
+    permission_classes = [AllowAny]  # Override default permissions
 
     def get(self, request):
-        token_value = request.GET.get("token")
-        if not token_value:
+        token = request.GET.get("token")
+        if not token:
             return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate token
         try:
-            token_obj = EmailVerificationToken.objects.get(token=token_value, is_used=False)
-        except EmailVerificationToken.DoesNotExist:
-            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+            code_obj = ConfirmationCode.objects.get(code=token)
+        except ConfirmationCode.DoesNotExist:
+            return Response({"error": "Invalid confirmation code."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if token is within validity period (15 minutes)
-        token_age = now() - token_obj.created_at
-        if token_age > timedelta(minutes=15):
-            return Response({"error": "Token has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        if code_obj.expires_at < now():
+            return Response({"error": "Confirmation code has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Mark token as used
-        token_obj.is_used = True
-        token_obj.save()
+        return Response({"message": "Action confirmed successfully!"}, status=status.HTTP_200_OK)
+    
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_account(request):
+    """
+    Endpoint to create a new account for the authenticated user.
+    The user can have multiple accounts but no more than 5.
+    """
+    if request.user.accounts.count() >= 5:
+        return Response({"error": "You cannot have more than 5 accounts."}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"message": "Action confirmed successfully!"}, status=status.HTTP_200_OK)'''
+    serializer = AccountSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(user=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+def currency_converter(request):
+    """
+    Endpoint to convert currency for a transaction.
+    Takes 'from_currency', 'to_currency', and 'amount' as inputs.
+    """
+    from_currency = request.data.get('from_currency')
+    to_currency = request.data.get('to_currency')
+    amount = request.data.get('amount')
+
+    # Basic conversion logic (static rate for demo purposes)
+    conversion_rate = 1.2  # Assume 1 USD = 1.2 EUR
+    if from_currency == 'USD' and to_currency == 'EUR':
+        converted_amount = amount * conversion_rate
+    elif from_currency == 'EUR' and to_currency == 'USD':
+        converted_amount = amount / conversion_rate
+    else:
+        return Response({"error": "Currency pair not supported."}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"converted_amount": converted_amount, "to_currency": to_currency}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def make_transaction(request):
+    """
+    Endpoint to make a transaction. 
+    Will check for matching currency pair, and redirect to currency converter if needed.
+    """
+    sender_account_number = request.data.get('sender_account_number')
+    recipient_account_number = request.data.get('recipient_account_number')
+    amount = request.data.get('amount')
+    transaction_type = request.data.get('transaction_type')
+    description = request.data.get('description')
+
+    try:
+        sender_account = Account.objects.get(account_number=sender_account_number, user=request.user)
+        recipient_account = Account.objects.get(account_number=recipient_account_number)
+    except Account.DoesNotExist:
+        return Response({"error": "Account not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if sender_account.currency != recipient_account.currency:
+        return Response({"error": "Currency pair does not match. Please convert the currency."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Create the transaction
+    transaction = Transaction(
+        account=sender_account,
+        amount=amount,
+        recipient_name=recipient_account.user.username,
+        recipient_account_number=recipient_account.account_number,
+        transaction_type=transaction_type,
+        description=description,
+        currency=sender_account.currency
+    )
+    transaction.save()
+
+    # Update sender account balance
+    sender_account.balance -= amount
+    sender_account.save()
+
+    return Response({"message": "Transaction successful", "transaction_id": transaction.transaction_id}, status=status.HTTP_201_CREATED)
+
+
+
+
+

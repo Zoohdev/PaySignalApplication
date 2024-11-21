@@ -1,9 +1,12 @@
 from datetime import timedelta
-from django.utils.timezone import now
-from .models import EmailVerificationToken
+import random
 import uuid
+from django.utils.timezone import now
+from .models import EmailVerificationToken, ConfirmationCode
 from django.core.mail import send_mail
 from django.conf import settings
+from decimal import Decimal
+
 
 def generate_email_verification_token(user):
     """
@@ -29,3 +32,42 @@ def send_action_confirmation_email(email, token):
     subject = "Confirm Your Action"
     message = f"To confirm your action, please click this link (valid for 15 minutes): {confirmation_url}"
     send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [email])
+
+def generate_confirmation_code(user):
+    # Generate a random 8-digit code
+    code = f"{random.randint(10000000, 99999999)}"
+
+    # Set expiration to 15 minutes
+    expires_at = now() + timedelta(minutes=15)
+
+    # Save to the database
+    ConfirmationCode.objects.create(user=user, code=code, expires_at=expires_at)
+
+    # Send the code via email
+    subject = "Your Confirmation Code"
+    message = f"Your confirmation code is: {code}. It is valid for 15 minutes."
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
+
+    return code
+
+# Example currency exchange rates (replace with API integration for real-world use)
+EXCHANGE_RATES = {
+    ('USD', 'EUR'): 0.85,
+    ('EUR', 'USD'): 1.18,
+    ('USD', 'GBP'): 0.75,
+    ('GBP', 'USD'): 1.33,
+    # Add more currency pairs as needed
+}
+
+def convert_currency(amount, from_currency, to_currency):
+    """
+    Convert the amount from one currency to another using predefined rates.
+    """
+    if from_currency == to_currency:
+        return amount  # No conversion needed
+    
+    try:
+        rate = EXCHANGE_RATES[(from_currency, to_currency)]
+        return Decimal(amount) * Decimal(rate)
+    except KeyError:
+        raise ValueError(f"Exchange rate for {from_currency} to {to_currency} not found.")
