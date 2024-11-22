@@ -330,24 +330,28 @@ def edit_profile(request):
     
     
 
-
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework import status
 from rest_framework.response import Response
 from django.http import JsonResponse
-from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from rest_framework.decorators import api_view
+from django.http import JsonResponse
+from rest_framework.response import Response
+from rest_framework.decorators import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import  permission_classes
 from django.core.mail import send_mail
 from django.contrib.auth import authenticate, login
 from django.conf import settings
 from django.utils.timezone import now, timedelta
-from .serializers import UserRegistrationSerializer, LoginSerializer, ConfirmationCodeSerializer, AccountSerializer, TransactionSerializer
+from .serializers import UserRegistrationSerializer, LoginSerializer,  ConfirmationCodeSerializer
 from .models import User,Transaction, EmailVerificationToken, ConfirmationCode, Account
 from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email
 import logging
 from django.urls import reverse
+from django.db import transaction as db_transaction
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 logger = logging.getLogger(__name__)
@@ -434,20 +438,19 @@ class VerifyEmailView(APIView):
     
 class LoginView(APIView):
     """
-    Handles user login with username and password.
-    Ensures the user's email is verified before allowing login.
+    Handles user login and sends a confirmation code to the user's email.
     """
-    
+
     permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data.get('username')
-        password = serializer.validated_data.get('password')
+        username = serializer.validated_data.get("username")
+        password = serializer.validated_data.get("password")
 
         try:
-            # Retrieve user based on the provided username
             user = User.objects.get(username=username)
         except User.DoesNotExist:
             return Response({"error": "No account found with the given username."}, status=status.HTTP_404_NOT_FOUND)
@@ -455,137 +458,145 @@ class LoginView(APIView):
         if not user.check_password(password):
             return Response({"error": "Invalid username or password."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user.is_verified_status:
-            # Generate confirmation code and send it to the user's email
-            code = generate_confirmation_code(user)
-            send_action_confirmation_email(user.email, code)
-
-            # Provide a URL for the user to input their confirmation code
-            redirect_url = reversed("verify-confirmation-code")  # Add this endpoint in `urls.py`
-            return JsonResponse(
-                {
-                    "message": f"A confirmation code has been sent to {user.email}.",
-                    "redirect_url": request.build_absolute_uri(redirect_url)
-                },
-                status=status.HTTP_200_OK
-            )
-        else:
+        if not user.is_verified_status:
             return Response({"error": "Email not verified. Please verify your email first."}, status=status.HTTP_403_FORBIDDEN)
-    
-    
+
+        # Generate confirmation code and send it to the user's email
+        code = generate_confirmation_code(user)
+        send_action_confirmation_email(user.email, code)
+
+        return Response(
+            {"message": "A confirmation code has been sent to your email."},
+            status=status.HTTP_200_OK,
+        )
+
+from django.contrib.auth import login
+
+
 
 class ConfirmActionView(APIView):
     """
-    API View to confirm action using a confirmation code.
+    Handles confirmation via a code and logs in the user automatically.
+    Accepts both POST and GET requests.
     """
-    
-    permission_classes = [AllowAny]  # Override default permissions
 
-    permission_classes = [AllowAny]  # Override default permissions
+    permission_classes = [AllowAny]
 
     def get(self, request):
         token = request.GET.get("token")
         if not token:
-            return Response({"error": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Token is required."}, status=400)
 
         try:
-            code_obj = ConfirmationCode.objects.get(code=token)
+            confirmation_code = ConfirmationCode.objects.get(code=token)
         except ConfirmationCode.DoesNotExist:
-            return Response({"error": "Invalid confirmation code."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid confirmation code."}, status=400)
 
-        if code_obj.expires_at < now():
-            return Response({"error": "Confirmation code has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        if confirmation_code.expires_at < now():
+            return Response({"error": "Confirmation code has expired."}, status=400)
 
-        return Response({"message": "Action confirmed successfully!"}, status=status.HTTP_200_OK)
+        user = confirmation_code.user
+        confirmation_code.delete()  # Invalidate the code after use
+        
+        
+        # Log the user in using Django's authentication system
+        login(request, user)
+
+        # Generate tokens and log the user in
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        # Set cookies with tokens
+        response = Response(
+            {"message": "Action confirmed and user logged in successfully!"},
+            status=200,
+        )
+        response.set_cookie(
+            "access_token", access_token, httponly=True, secure=True, samesite="Lax"
+        )
+        response.set_cookie(
+            "refresh_token", str(refresh), httponly=True, secure=True, samesite="Lax"
+        )
+        return response
+
+    def post(self, request):
+        serializer = ConfirmationCodeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data.get("code")
+
+        try:
+            confirmation_code = ConfirmationCode.objects.get(code=code)
+        except ConfirmationCode.DoesNotExist:
+            return Response({"error": "Invalid confirmation code."}, status=400)
+
+        if confirmation_code.expires_at < now():
+            return Response({"error": "Confirmation code has expired."}, status=400)
+
+        user = confirmation_code.user
+        confirmation_code.delete()  # Invalidate the code after use
+
+        # Generate tokens and log the user in
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        
+        
+        # Log the user in using Django's authentication system
+        login(request, user)
+
+        # Set cookies with tokens
+        response = Response(
+            {"message": "Action confirmed and user logged in successfully!"},
+            status=200,
+        )
+        response.set_cookie(
+            "access_token", access_token, httponly=True, secure=True, samesite="Lax"
+        )
+        response.set_cookie(
+            "refresh_token", str(refresh), httponly=True, secure=True, samesite="Lax"
+        )
+        return response
+
+
+
+class LogoutView(APIView):
+    """
+    Handles user logout by blacklisting the refresh token.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh_token")
+            token = RefreshToken(refresh_token)
+            token.blacklist()  # Blacklist the token
+            return Response({"message": "Successfully logged out."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CookieTokenRefreshView(TokenRefreshView):
+    """
+    Custom view to refresh tokens and update cookies.
+    """
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get("refresh_token")
+        if not refresh_token:
+            return Response({"error": "Refresh token not found."}, status=400)
+
+        request.data['refresh'] = refresh_token  # Inject refresh token into request data
+        response = super().post(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            access_token = response.data["access"]
+            response.set_cookie(
+                "access_token", access_token, httponly=True, secure=True, samesite="Lax"
+            )
+        return response
     
-    
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_account(request):
-    """
-    Endpoint to create a new account for the authenticated user.
-    The user can have multiple accounts but no more than 5.
-    """
-    if request.user.accounts.count() >= 5:
-        return Response({"error": "You cannot have more than 5 accounts."}, status=status.HTTP_400_BAD_REQUEST)
-
-    serializer = AccountSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(user=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-def currency_converter(request):
-    """
-    Endpoint to convert currency for a transaction.
-    Takes 'from_currency', 'to_currency', and 'amount' as inputs.
-    """
-    from_currency = request.data.get('from_currency')
-    to_currency = request.data.get('to_currency')
-    amount = request.data.get('amount')
-
-    # Basic conversion logic (static rate for demo purposes)
-    conversion_rate = 1.2  # Assume 1 USD = 1.2 EUR
-    if from_currency == 'USD' and to_currency == 'EUR':
-        converted_amount = amount * conversion_rate
-    elif from_currency == 'EUR' and to_currency == 'USD':
-        converted_amount = amount / conversion_rate
-    else:
-        return Response({"error": "Currency pair not supported."}, status=status.HTTP_400_BAD_REQUEST)
-
-    return Response({"converted_amount": converted_amount, "to_currency": to_currency}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def make_transaction(request):
-    """
-    Endpoint to make a transaction. 
-    Will check for matching currency pair, and redirect to currency converter if needed.
-    """
-    sender_account_number = request.data.get('sender_account_number')
-    recipient_account_number = request.data.get('recipient_account_number')
-    amount = request.data.get('amount')
-    transaction_type = request.data.get('transaction_type')
-    description = request.data.get('description')
-
-    try:
-        sender_account = Account.objects.get(account_number=sender_account_number, user=request.user)
-        recipient_account = Account.objects.get(account_number=recipient_account_number)
-    except Account.DoesNotExist:
-        return Response({"error": "Account not found."}, status=status.HTTP_400_BAD_REQUEST)
-
-    if sender_account.currency != recipient_account.currency:
-        return Response({"error": "Currency pair does not match. Please convert the currency."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Create the transaction
-    transaction = Transaction(
-        account=sender_account,
-        amount=amount,
-        recipient_name=recipient_account.user.username,
-        recipient_account_number=recipient_account.account_number,
-        transaction_type=transaction_type,
-        description=description,
-        currency=sender_account.currency
-    )
-    transaction.save()
-
-    # Update sender account balance
-    sender_account.balance -= amount
-    sender_account.save()
-
-    return Response({"message": "Transaction successful", "transaction_id": transaction.transaction_id}, status=status.HTTP_201_CREATED)
-
-
-@api_view(['POST'])
-def create_transaction(request):
-    if request.method == 'POST':
-        serializer = TransactionSerializer(data=request.data)
-        if serializer.is_valid():
-            transaction = serializer.save()
-            return Response(TransactionSerializer(transaction).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+class CustomJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        # Look for tokens in cookies
+        access_token = request.COOKIES.get('access_token')
+        if access_token:
+            request.META['HTTP_AUTHORIZATION'] = f'Bearer {access_token}'
+        return super().authenticate(request)

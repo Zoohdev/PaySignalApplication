@@ -140,11 +140,11 @@ EMAIL_HOST_USER = 'paysignalapp@gmail.com'  # Your email
 EMAIL_HOST_PASSWORD = 'alee daae zbhu yeqk'# Your email password
 
 # SESSION MANAGEMENT
-SESSION_COOKIE_AGE = 900  # 15 minutes, or set according to your needs
+'''SESSION_COOKIE_AGE = 900  # 15 minutes, or set according to your needs
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # End session on browser close
 SESSION_COOKIE_SECURE = False  # Only send cookies over HTTPS, set to True in production
 CSRF_COOKIE_SECURE = False     # Secure CSRF cookies as well, set to True in production
-SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = True  # Prevent client-side JavaScript from accessing session cookies, set to True in production'''
 
 # Django REST Framework configuration
 REST_FRAMEWORK = {
@@ -165,11 +165,13 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
+    'ALGORITHM': 'HS256',
+
 }
 
 

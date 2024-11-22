@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import ConfirmationCode, Account, Transaction
+from django.utils.timezone import now
 
 
 User = get_user_model()
@@ -34,44 +35,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             country=validated_data['country'],
         )
         return user
-
-class AccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Account
-        fields = ['account_number', 'account_type', 'currency', 'balance', 'date_opened']
-        read_only_fields = ['account_number', 'date_opened', 'balance']  # account_number is auto-generated
-
-
-class TransactionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Transaction
-        fields = [
-            'transaction_id', 'account', 'amount', 'recipient_name', 
-            'recipient_account_number', 'transaction_type', 'currency', 
-            'user_phone', 'user_location', 'time_sent', 'time_received', 
-            'description', 'tracking_number'
-        ]
-        read_only_fields = ['transaction_id', 'time_sent', 'time_received', 'tracking_number']
-
-    def validate(self, data):
-        # Custom validation for transaction type
-        if data['amount'] <= 0:
-            raise serializers.ValidationError("Amount must be greater than zero.")
-        return data
-
-    def create(self, validated_data):
-        transaction = super().create(validated_data)
-        # Adjust account balance
-        account = transaction.account
-        if transaction.transaction_type == 'deposit':
-            account.balance += transaction.amount
-        elif transaction.transaction_type == 'withdrawal':
-            if account.balance < transaction.amount:
-                raise serializers.ValidationError("Insufficient balance.")
-            account.balance -= transaction.amount
-        account.save()
-        return transaction
-    
 
     
     
@@ -118,21 +81,14 @@ class ConfirmationCodeSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid confirmation code.")
 
         # Check if the code has expired
-        if not confirmation_code.is_valid():
+        if confirmation_code.expires_at < now():
             raise serializers.ValidationError("Confirmation code has expired.")
 
         return value
-    
-class CurrencyConversionSerializer(serializers.Serializer):
-    from_currency = serializers.CharField(max_length=3)
-    to_currency = serializers.CharField(max_length=3)
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2)
-    
 
-        
-        
-class AccountCreateSerializer(serializers.ModelSerializer):
+
+class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
-        fields = ['account_type', 'currency']
-        read_only_fields = ['account_number', 'date_opened', 'balance']       
+        fields = ['account_id', 'account_number', 'balance', 'currency', 'date_opened', 'account_type']
+        read_only_fields = ['account_id', 'account_number', 'balance', 'date_opened']
