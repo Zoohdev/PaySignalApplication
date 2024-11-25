@@ -7,6 +7,8 @@ import Search from './Search';
 import SwitchProfile from './tabs/SwitchProfile';
 import Profile from './Profile';
 
+
+// Is the tab for the menu and other assorted peices of it
 const Tab = createBottomTabNavigator();
 
 const Bank = () => (

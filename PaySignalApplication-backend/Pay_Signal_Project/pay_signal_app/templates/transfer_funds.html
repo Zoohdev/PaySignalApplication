@@ -1,0 +1,28 @@
+<!-- your_app/templates/transactions/transfer_funds.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Funds</title>
+</head>
+<body>
+    <h1>Transfer Funds</h1>
+    <p>From Account: {{ account.account_number }}</p>
+    <p>Current Balance: {{ account.balance }}</p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Transfer Funds</button>
+    </form>
+
+    <a href="{% url 'account_detail' account.id %}">Back to Account Details</a>
+</body>
+</html>

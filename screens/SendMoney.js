@@ -1,198 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Dropdown } from 'react-native-element-dropdown';
-import CountryFlag from 'react-native-country-flag';
-import { scale, verticalScale, moderateScale } from 'react-native-size-matters';
+import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import axios from 'axios';
 
-const currencyData = [
-  { label: 'South African Rand', value: 'ZAR', flag: 'ZA' },
-  { label: 'US Dollar', value: 'USD', flag: 'US' },
-  { label: 'Euro', value: 'EUR', flag: 'EU' },
-  { label: 'British Pound', value: 'GBP', flag: 'GB' },
-  { label: 'Japanese Yen', value: 'JPY', flag: 'JP' },
-  { label: 'Australian Dollar', value: 'AUD', flag: 'AU' },
-];
+export default function SendMoneyScreen({ navigation }) {
+  const [recipientAccount, setRecipientAccount] = useState('');
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+  const [currency, setCurrency] = useState('USD');
+  const [convertedAmount, setConvertedAmount] = useState('');
 
-const conversionRates = {
-  ZAR: { USD: 0.055, EUR: 0.051, GBP: 0.045, JPY: 8.30 },
-  USD: { ZAR: 18.20, EUR: 0.92, GBP: 0.82, JPY: 151.00 },
-  EUR: { ZAR: 19.60, USD: 1.09, GBP: 0.89, JPY: 164.00 },
-  GBP: { ZAR: 22.20, USD: 1.22, EUR: 1.12, JPY: 185.00 },
-};
-
-const SendMoney = () => {
-  const [fromAmount, setFromAmount] = useState('');
-  const [convertedAmount, setConvertedAmount] = useState('R0.00');
-  const [fromCurrency, setFromCurrency] = useState('ZAR');
-  const [toCurrency, setToCurrency] = useState('USD');
-  const [recipientName, setRecipientName] = useState('');
-  const [recipientPhone, setRecipientPhone] = useState(''); // New state for phone number
-
-  const handleSend = () => {
-    Alert.alert('Send Money', `Sending ${fromAmount} ${fromCurrency} to ${recipientName}. Converted amount: ${convertedAmount}`);
-    setFromAmount('');
-    setConvertedAmount('R0.00');
-    setRecipientName('');
-    setRecipientPhone(''); // Reset the phone input
+  const exchangeRates = {
+    USD: 1,
+    EUR: 0.93,
+    GBP: 0.81,
+    INR: 82,
+    ZAR: 18.44, // South African Rand (example exchange rate)
+    NGN: 775,   // Nigerian Naira (example exchange rate)
   };
 
-  useEffect(() => {
-    handleConversion();
-  }, [fromAmount, fromCurrency, toCurrency]);
+  const handleAmountChange = (amount) => {
+    setAmount(amount);
 
-  const handleConversion = () => {
-    if (fromAmount && !isNaN(fromAmount) && conversionRates[fromCurrency][toCurrency]) {
-      const convertedValue = parseFloat(fromAmount) * conversionRates[fromCurrency][toCurrency];
-      setConvertedAmount(`${toCurrency === 'ZAR' ? 'R' : ''}${convertedValue.toFixed(2)}`);
+    if (!isNaN(amount) && parseFloat(amount) > 0 && currency) {
+      const converted = (parseFloat(amount) / exchangeRates[currency]).toFixed(2);
+      setConvertedAmount(converted);
     } else {
-      setConvertedAmount('R0.00');
+      setConvertedAmount('');
+    }
+  };
+
+  const handleSendMoney = async () => {
+    if (!recipientAccount || !amount || !currency) {
+      Alert.alert('Error', 'Please enter all required fields.');
+      return;
+    }
+
+    if (isNaN(amount) || parseFloat(amount) <= 0) {
+      Alert.alert('Error', 'Please enter a valid amount.');
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        'http://192.168.1.113:8000/api/send-money/',
+        {
+          recipient_account: recipientAccount,
+          amount: convertedAmount,
+          message,
+          currency,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Token YOUR_AUTH_TOKEN`,
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        Alert.alert('Success', 'Money sent successfully!');
+        setRecipientAccount('');
+        setAmount('');
+        setMessage('');
+        setCurrency('USD');
+        setConvertedAmount('');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', error.response?.data?.detail || 'Something went wrong');
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Send Money</Text>
-      
-      <View style={styles.resultContainer}>
-        <Text style={styles.resultText}>Converted Amount:</Text>
-        <Text style={styles.convertedAmount}>{convertedAmount} {toCurrency}</Text>
+
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          placeholder="Recipient Account Number"
+          placeholderTextColor="#888"
+          value={recipientAccount}
+          onChangeText={setRecipientAccount}
+        />
       </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter recipient's name"
-        placeholderTextColor="#b0b0b0"
-        value={recipientName}
-        onChangeText={text => setRecipientName(text)}
-        textAlign="center"
-      />
+      <View style={styles.inputWrapper}>
+        <Picker
+          selectedValue={currency}
+          onValueChange={(value) => {
+            setCurrency(value);
+            handleAmountChange(amount);
+          }}
+          style={styles.picker}
+        >
+          <Picker.Item label="USD - United States Dollar" value="USD" />
+          <Picker.Item label="EUR - Euro" value="EUR" />
+          <Picker.Item label="GBP - British Pound" value="GBP" />
+          <Picker.Item label="INR - Indian Rupee" value="INR" />
+          <Picker.Item label="ZAR - South African Rand" value="ZAR" />
+          <Picker.Item label="NGN - Nigerian Naira" value="NGN" />
+        </Picker>
+      </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter recipient's phone number"
-        placeholderTextColor="#b0b0b0"
-        keyboardType="phone-pad"
-        value={recipientPhone} // Use recipientPhone state here
-        onChangeText={text => setRecipientPhone(text)} // Update the recipientPhone state
-        textAlign="center"
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          placeholder="Amount in Selected Currency"
+          placeholderTextColor="#888"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={handleAmountChange}
+        />
+      </View>
 
-      <Dropdown
-        style={styles.dropdown}
-        data={currencyData}
-        labelField="label"
-        valueField="value"
-        value={fromCurrency}
-        onChange={item => setFromCurrency(item.value)}
-        renderLeftIcon={() => (
-          <CountryFlag isoCode={currencyData.find(currency => currency.value === fromCurrency)?.flag} size={25} />
-        )}
-      />
+      {convertedAmount ? (
+        <View style={styles.card}>
+          <Text style={styles.cardText}>Converted Amount in USD</Text>
+          <Text style={styles.cardAmount}>${convertedAmount}</Text>
+        </View>
+      ) : null}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter amount"
-        placeholderTextColor="#b0b0b0"
-        keyboardType="numeric"
-        value={fromAmount}
-        onChangeText={text => setFromAmount(text)}
-        textAlign="center"
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.input}
+          placeholder="Message (Optional)"
+          placeholderTextColor="#888"
+          value={message}
+          onChangeText={setMessage}
+        />
+      </View>
 
-      <Dropdown
-        style={styles.dropdown}
-        data={currencyData}
-        labelField="label"
-        valueField="value"
-        value={toCurrency}
-        onChange={item => setToCurrency(item.value)}
-        renderLeftIcon={() => (
-          <CountryFlag isoCode={currencyData.find(currency => currency.value === toCurrency)?.flag} size={25} />
-        )}
-      />
-
-      <TouchableOpacity onPress={handleSend} style={styles.button}>
-        <Text style={styles.buttonText}>Initiate Transfer</Text>
+      <TouchableOpacity style={styles.button} onPress={handleSendMoney}>
+        <Text style={styles.buttonText}>Send</Text>
       </TouchableOpacity>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    padding: scale(20),
-    flexGrow: 1,
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#121212',
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#2a2b37',
   },
   title: {
-    fontSize: moderateScale(24),
+    color: '#FFA500',
+    fontSize: 28,
+    marginBottom: 30,
+    textAlign: 'center',
     fontWeight: 'bold',
-    color: '#ff9800',
-    marginBottom: verticalScale(20),
   },
-  resultContainer: {
-    marginBottom: verticalScale(20),
-    alignItems: 'center',
-  },
-  resultText: {
-    fontSize: moderateScale(18),
-    color: '#fff',
-  },
-  convertedAmount: {
-    fontSize: moderateScale(28),
-    fontWeight: 'bold',
-    color: '#ff9800',
-  },
-  dropdown: {
-    height: verticalScale(50),
-    width: '100%',
-    maxWidth: scale(250),
-    borderColor: '#ff9800',
-    borderWidth: 2,
-    borderRadius: 10,
-    marginBottom: verticalScale(10),
-    backgroundColor: '#fff',
-    elevation: 2,
+  inputWrapper: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 12,
+    marginBottom: 20,
+    paddingHorizontal: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 4,
   },
   input: {
-    height: verticalScale(50),
-    width: '100%',
-    maxWidth: scale(250),
-    borderColor: '#ff9800',
-    borderWidth: 2,
-    borderRadius: 10,
-    paddingHorizontal: scale(15),
-    backgroundColor: '#fff',
-    color: '#000',
-    fontSize: moderateScale(18),
-    textAlign: 'center',
-    marginBottom: verticalScale(15),
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 1.41,
+    color: '#fff',
+    fontSize: 16,
+    height: 50,
   },
-  button: {
-    backgroundColor: '#ff9800',
-    borderRadius: scale(10),
-    paddingVertical: verticalScale(12),
-    paddingHorizontal: scale(30),
-    marginTop: verticalScale(20),
+  picker: {
+    color: '#fff',
+    fontSize: 16,
+    height: 50,
+  },
+  card: {
+    backgroundColor: '#292929',
+    padding: 20,
+    borderRadius: 15,
+    marginBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     elevation: 5,
   },
+  cardText: {
+    color: '#aaa',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  cardAmount: {
+    color: '#FFA500',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  button: {
+    backgroundColor: '#FFA500',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 6,
+  },
   buttonText: {
-    color: '#fff',
-    fontSize: moderateScale(18),
-    fontWeight: '600',
-    textAlign: 'center',
+    color: '#000',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
-
-export default SendMoney;

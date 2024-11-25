@@ -1,30 +1,46 @@
 import { View, Text, TextInput, StyleSheet, FlatList, TouchableOpacity, Image, Animated, Easing } from 'react-native';
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const menuItems = [
   { title: 'Deposit', icon: 'cash-outline' },
   { title: 'Withdraw', icon: 'arrow-down-circle-outline' },
+  { title: 'SendMoney', icon: 'send-outline' },
   { title: 'Transfer', icon: 'swap-horizontal-outline' },
   { title: 'Account Info', icon: 'information-circle-outline' },
-  { title: 'Loan', icon: 'document-text-outline' },
   { title: 'Investments', icon: 'rocket-outline' },
   { title: 'Contact', icon: 'mail-outline' },
   { title: 'Support', icon: 'help-circle-outline' },
   { title: 'Transactions', icon: 'list-outline' },
   { title: 'Notifications', icon: 'notifications-outline' },
-  { title: 'Profile', icon: 'person-outline' },
   { title: 'Insurance', icon: 'shield-outline' },
   { title: 'Betting', icon: 'game-controller-outline' },
   { title: 'Travel', icon: 'airplane-outline' },
   { title: 'Crypto', icon: 'logo-bitcoin' },
-  { title: 'Prepaid', icon: 'card-outline' },
+  { title: 'Prepaid', icon: 'wallet-outline' },
 ];
 
 const Search = () => {
+  const [searchQuery, setSearchQuery] = useState('');  // Add state to manage search query
+  const [filteredItems, setFilteredItems] = useState(menuItems);  // Filtered items based on search query
+
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const textAnim = useRef(new Animated.Value(0)).current;
+  const navigation = useNavigation();
+
+  // Filter menu items based on search query
+  useEffect(() => {
+    if (searchQuery === '') {
+      setFilteredItems(menuItems);
+    } else {
+      const filtered = menuItems.filter(item =>
+        item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredItems(filtered);
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     Animated.parallel([
@@ -50,7 +66,7 @@ const Search = () => {
   }, [scaleAnim, opacityAnim, textAnim]);
 
   const renderMenuItem = ({ item }) => (
-    <TouchableOpacity style={styles.menuCard}>
+    <TouchableOpacity style={styles.menuCard} onPress={() => navigation.navigate(item.title)}>
       <Ionicons name={item.icon} size={30} color="#FFA500" />
       <Text style={styles.menuIconText}>{item.title}</Text>
     </TouchableOpacity>
@@ -63,37 +79,36 @@ const Search = () => {
           <Text style={styles.headerTitle}>Signal Success in Banking</Text>
         </View>
         <View style={styles.profilePicContainer}>
-          <Image
-            source={require('../assets/profile.jpeg')}
-            style={styles.profilePic}
-          />
+          <Image source={require('../assets/profile.jpeg')} style={styles.profilePic} />
         </View>
       </View>
 
       <View style={styles.imageBlock}>
-        <Animated.View style={{
-          transform: [{ scale: scaleAnim }],
-          opacity: opacityAnim,
-        }}>
-          <Image
-            source={require('../assets/icon.png')}
-            style={styles.fullWidthImage}
-            resizeMode="contain"
-          />
+        <Animated.View
+          style={{
+            transform: [{ scale: scaleAnim }],
+            opacity: opacityAnim,
+          }}
+        >
+          <Image source={require('../assets/icon.png')} style={styles.fullWidthImage} resizeMode="contain" />
         </Animated.View>
       </View>
 
-      <Animated.Text style={{
-        ...styles.logoText,
-        opacity: textAnim,
-        transform: [{
-          translateY: textAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [20, 0], // Moves up as it fades in
-          }),
-        }],
-        marginBottom: 20,
-      }}>
+      <Animated.Text
+        style={{
+          ...styles.logoText,
+          opacity: textAnim,
+          transform: [
+            {
+              translateY: textAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [20, 0],
+              }),
+            },
+          ],
+          marginBottom: 20,
+        }}
+      >
         Your Foreign Exchange Partner
       </Animated.Text>
 
@@ -103,11 +118,13 @@ const Search = () => {
           style={styles.searchBar}
           placeholder="Search..."
           placeholderTextColor="#aaa"
+          value={searchQuery}  // Bind the search input to the state
+          onChangeText={setSearchQuery}  // Update the search query state on input change
         />
       </View>
 
       <FlatList
-        data={menuItems}
+        data={filteredItems}  // Use filteredItems instead of menuItems
         renderItem={renderMenuItem}
         keyExtractor={(item) => item.title}
         numColumns={3}
@@ -120,15 +137,15 @@ const Search = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f0f0', // Changed to a slightly darker white
+    backgroundColor: '#121212',
   },
   header: {
     width: '100%',
     height: 60,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1F1F1F',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end', // Align items to the right
+    justifyContent: 'flex-end',
     paddingHorizontal: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -138,12 +155,12 @@ const styles = StyleSheet.create({
   },
   headerTitleContainer: {
     flex: 1,
-    alignItems: 'flex-start', // Align the title to the left
+    alignItems: 'flex-start',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#fff',
   },
   profilePicContainer: {
     borderRadius: 20,
@@ -184,7 +201,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#333',
     borderWidth: 1,
     borderColor: '#FFA500',
     borderRadius: 25,
@@ -199,7 +216,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     paddingHorizontal: 10,
-    color: '#000',
+    color: '#fff',
     borderRadius: 25,
   },
   menuList: {
@@ -210,7 +227,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     marginBottom: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1F1F1F',
     borderRadius: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -219,7 +236,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   menuIconText: {
-    color: '#000000',
+    color: '#fff',
     textAlign: 'center',
     marginTop: 5,
     fontSize: 12,

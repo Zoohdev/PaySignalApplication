@@ -1,0 +1,18 @@
+<h1>Transactions for Account: {{ account.account_type }}</h1>
+
+<ul>
+    {% for transaction in transactions %}
+        <li>
+            <strong>Date:</strong> {{ transaction.date_of_transaction }} <br>
+            <strong>Amount:</strong> {{ transaction.amount }} {{ transaction.currency }} <br>
+            <strong>Sent to:</strong> {{ transaction.transferred_to }} <br>
+            <strong>Time Sent:</strong> {{ transaction.time_sent }} <br>
+            <strong>Time Received:</strong> {{ transaction.time_received }} <br>
+            <strong>Location:</strong> {{ transaction.location }} <br>
+        </li>
+    {% empty %}
+        <li>No transactions for this account.</li>
+    {% endfor %}
+</ul>
+
+<a href="{% url 'transfer_funds' account.id %}">Transfer Funds</a>

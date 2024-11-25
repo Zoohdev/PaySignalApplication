@@ -1,110 +1,204 @@
-import React, { useState } from "react";
-import { View, Text, Image, TextInput, TouchableOpacity, Dimensions, Alert } from "react-native";
-import { StatusBar } from "expo-status-bar";
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { useNavigation } from "@react-navigation/native";
-import { AuthContext } from "./Authcontext";
-import Icon from 'react-native-vector-icons/FontAwesome'; // Import FontAwesome for eye icon
+import React, { useState } from 'react';
+import { View, TextInput, TouchableOpacity, Text, Alert, StyleSheet, ImageBackground, Dimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useNavigation } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/FontAwesome';  // Importing FontAwesome icons
+import axios from 'axios';
 
-const { width, height } = Dimensions.get('window');
 
-export default function Login() {
-  const navigation = useNavigation();
+const { height } = Dimensions.get('window');
 
-  // State variables to store email, password, and password visibility
+const Login = ({ navigation }) => {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [secureTextEntry, setSecureTextEntry] = useState(true); // To toggle password visibility
+  const [loading, setLoading] = useState(false);
+  const [secureText, setSecureText] = useState(true);  // State to toggle password visibility
 
-  // Function to validate the email format
-  const isValidEmail = (email) => {
-    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
-    return emailRegex.test(email);
+  // Email validation regex
+  const validateEmail = (email) => {
+    const re = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    return re.test(String(email).toLowerCase());
   };
 
-  // Function to handle login
-  const handleLogin = () => {
-    if (!email || !password) {
-      alert('Please enter both email and password.');
-      return;
-    }
-    if (!isValidEmail(email)) {
-      Alert.alert("Invalid Email", "Please enter a valid email address.");
+  const handleLogin = async () => {
+    if (!email || !username || !password) {
+      Alert.alert('Error', 'Please enter email, username, and password');
       return;
     }
 
-    if (password.trim().length === 0) {
-      Alert.alert("Invalid Password", "Please enter a password.");
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
       return;
     }
 
-    console.log("Email: ", email);
-    console.log("Password: ", password);
+    setLoading(true);
+    try {
+      const response = await axios.post('http://192.168.0.175:8000/api/users/login/', {
+        email,
+        username,
+        password,
+      });
 
-    navigation.navigate("Home");
-  };
+      if (response.status === 200) {
+        Alert.alert('Success', 'Login successful');
 
-  // Function to toggle the password visibility
-  const togglePasswordVisibility = () => {
-    setSecureTextEntry(!secureTextEntry);
+        // Assuming the response includes the user's data (name, username, and email)
+        const { name, username, email } = response.data;
+
+        // Navigate to Profile screen, passing the name, username, and email
+        navigation.navigate('Home', { name, username, email });
+        
+      } else {
+        Alert.alert('Error', response.data.message || 'Invalid credentials');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', error.response ? error.response.data.message : 'Server connection failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={{ backgroundColor: 'black', height, width }}>
+    <ImageBackground
+      source={require('../assets/image.jpg')} // Ensure the path to your image is correct
+      style={styles.container}
+    >
       <StatusBar style="light" />
-      <Image style={{ height, width, position: 'absolute' }} source={require("../assets/image.jpg")} />
-      {/* Lights Images */}
-      
-      {/* Title and Form */}
-      <View style={{ height, width, justifyContent: 'space-around', paddingTop: height * 0.1, paddingBottom: 10 }}>
-        {/* Title */}
-        <View style={{ alignItems: 'center', color: "#F7A460" }}>
-          <Animated.Text entering={FadeInUp.duration(1000).springify()} style={{ color: '#ffa500', fontWeight: 'bold', letterSpacing: 1, fontSize: height * 0.06 }}>
-            PaySignal
-          </Animated.Text>
-        </View>
-      
-        {/* Form */}
-        <View style={{ alignItems: 'center', marginHorizontal: 16 }}>
-          <Animated.View entering={FadeInDown.duration(1000).springify()} style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', padding: 15, borderRadius: 10, width: '90%', marginBottom: 16 }}>
-            <TextInput
-              placeholder="Email"
-              placeholderTextColor={"white"}
-              style={{ height: 40, color: 'white' }}
-              value={email}
-              onChangeText={setEmail}
-            />
-          </Animated.View>
-          <Animated.View entering={FadeInDown.delay(200).duration(1000).springify()} style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)', padding: 15, borderRadius: 10, width: '90%', marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
-            <TextInput
-              placeholder="Password"
-              placeholderTextColor={"white"}
-              secureTextEntry={secureTextEntry} // Bind the password visibility
-              style={{ height: 40, color: 'white', flex: 1 }}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity onPress={togglePasswordVisibility} style={{ padding: 10 }}>
-              <Icon name={secureTextEntry ? 'eye-slash' : 'eye'} size={24} color="white" />
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-        
-        <Animated.View entering={FadeInDown.delay(400).duration(1000).springify()} style={{ alignItems: 'center', width: '100%' }}>
-          <TouchableOpacity style={{ width: '90%', backgroundColor: '#fff', padding: 12, borderRadius: 10, marginBottom: 12, marginHorizontal: 'auto' }} onPress={handleLogin}>
-            <Text style={{ fontSize: height * 0.025, fontWeight: 'bold', color: 'black', textAlign: 'center' }}>
-              Login
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
+      <View style={styles.overlay}>
+        <Text style={styles.title}>PaySignal</Text>
 
-        <Animated.View entering={FadeInDown.delay(600).duration(1000).springify()} style={{ flexDirection: 'row', justifyContent: 'center' }}>
-          <Text style={{ color: 'white' }}>Don't have an account?</Text>
-          <TouchableOpacity onPress={() => navigation.push('SignUp')}>
-            <Text style={{ color: '#FA7901' }}> Sign Up</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#fff"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          placeholderTextColor="#fff"
+          value={username}
+          onChangeText={setUsername}
+        />
+        
+        {/* Password Input with Transparent Background */}
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={[styles.input, { flex: 1, paddingRight: 40 }]}  // Ensure input takes up most space
+            placeholder="Password"
+            placeholderTextColor="#fff"
+            value={password}
+            secureTextEntry={secureText}  // Toggle password visibility
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity onPress={() => setSecureText(!secureText)} style={styles.eyeIconContainer}>
+            <Icon name={secureText ? 'eye-slash' : 'eye'} size={30} color="#fff" />  {/* Eye icon size increased */}
           </TouchableOpacity>
-        </Animated.View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Logging in...' : 'Login'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.footerContainer}>
+          <Text style={styles.footerText}>Don't have an account? </Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+            <Text style={styles.signupText}>Sign Up</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </ImageBackground>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  overlay: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',  // Semi-transparent overlay for readability
+    width: '100%',
+    height: '100%',
+  },
+  title: {
+    fontSize: height * 0.07,
+    color: '#FFA500',
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+    marginBottom: 30,
+  },
+  input: {
+    height: 55,
+    width: '90%',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',  // Remove any extra shadow
+    borderRadius: 10,
+    color: 'white',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    fontSize: 16,
+    elevation: 0,  // Remove shadow or elevation that may cause the extra piece
+    shadowOpacity: 0,  // Remove shadow opacity
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '90%',
+    backgroundColor: 'transparent',  // Set background to transparent
+    borderRadius: 10,
+    marginBottom: 20,
+    position: 'relative',
+    elevation: 0,  // Remove shadow or elevation that may cause the extra piece
+    shadowOpacity: 0,  // Remove shadow opacity
+  },
+  eyeIconContainer: {
+    position: 'absolute',
+    right: 10,
+    top: 12,  // Adjust the `top` value to move the eye icon higher
+  },
+  button: {
+    height: 50,
+    width: '90%',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  buttonText: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  footerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 15,
+  },
+  footerText: {
+    color: 'white',
+    fontSize: 16,
+  },
+  signupText: {
+    color: '#FFA500',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+});
+
+export default Login;

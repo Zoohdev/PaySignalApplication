@@ -1,0 +1,15 @@
+<!-- your_app/templates/transactions/receipt.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Receipt</title>
+</head>
+<body>
+    <h1>Transaction Receipt</h1>
+    <p>Transaction ID: {{ transaction.transaction_id }}</p>
+    <p>Amount: {{ transaction.amount }} {{ transaction.currency }}</p>
+    <p>Recipient: {{ transaction.recipient_name }}</p>
+    <p>Status: Successful</p>
+</body>
+</html>

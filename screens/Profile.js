@@ -20,7 +20,7 @@ const Profile = ({ navigation }) => {
       <View style={styles.optionsContainer}>
         <TouchableOpacity
           style={styles.optionContainer}
-          onPress={() => navigation.navigate('UserAuth')}
+          onPress={() => navigation.navigate('MyProfile')}
         >
           <Ionicons name="person" size={24} style={styles.icon} color="#FF8C00" />
           <View>
@@ -69,12 +69,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#121212',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#1F1F1F',
+    paddingVertical: 10,
   },
   headerContent: {
     flexDirection: 'row',
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     marginLeft: 8,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FF8C00',
   },
   profileSection: {
     marginTop: 20,
@@ -91,7 +93,7 @@ const styles = StyleSheet.create({
   profileText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
   },
   optionsContainer: {
     marginTop: 20,
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
   optionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#333333',
     padding: 16,
     borderRadius: 8,
     marginBottom: 10,
@@ -110,10 +112,10 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#FFFFFF',
   },
   optionDescription: {
     fontSize: 12,
-    color: '#888',
+    color: '#BBBBBB',
   },
 });
