@@ -149,7 +149,7 @@ SESSION_COOKIE_HTTPONLY = True  # Prevent client-side JavaScript from accessing 
 # Django REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'pay_signal_app.authentication.CustomJWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.BasicAuthentication',
@@ -190,3 +190,27 @@ LOGGING = {
 }
 
 
+
+# CORS configuration
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'cookie',
+]
+
+# Ensure you have CORS settings installed
+INSTALLED_APPS += [
+    'corsheaders',
+]
+
+MIDDLEWARE.insert(0, 'corsheaders.middleware.CorsMiddleware')
+
+
+SIMPLE_JWT = {
+    'USER_ID_FIELD': 'username',  # Change to 'email' or your unique field if necessary
+    'USER_ID_CLAIM': 'username',  # Customize the claim name if needed
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),  # Optional: Configure token expiration
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}

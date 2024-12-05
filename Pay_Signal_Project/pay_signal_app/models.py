@@ -8,28 +8,8 @@ from django.utils import timezone
 from django.utils.timezone import now
 from datetime import timedelta
 from django.core.exceptions import ValidationError
+from decimal import Decimal
 
-
-# Choices for currency and account types
-CURRENCY_CHOICES = [
-    ('USD', 'US Dollar'),
-    ('EUR', 'Euro'),
-    ('GBP', 'British Pound'),
-    # Add more currencies as needed
-]
-
-ACCOUNT_TYPES = [
-    ('savings', 'Savings Account'),
-    ('checking', 'Checking Account'),
-    ('investment', 'Investment Account'),
-]
-
-
-TRANSACTION_TYPES = [
-    ('Deposit', 'Deposit'),
-    ('Withdrawal', 'Withdrawal'),
-    ('Transfer', 'Transfer')
-]
 
 
 
@@ -79,82 +59,6 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username} - {self.country} - {self.currency} - Verified: {self.is_verified_status}"
 
-
-class Account(models.Model):
-    """
-    Model representing a user's bank account.
-    Each user can have up to 5 accounts, with unique account numbers.
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="accounts")
-    account_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    account_number = models.CharField(max_length=11, unique=True, editable=False)
-    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
-    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
-    date_opened = models.DateTimeField(default=timezone.now)
-    account_type = models.CharField(max_length=15, choices=ACCOUNT_TYPES, default='savings')
-
-    def save(self, *args, **kwargs):
-        # Enforce a maximum of 5 accounts per user
-        if self.user.accounts.count() >= 5:
-            raise ValidationError("User cannot have more than 5 accounts.")
-
-        # Generate a unique 11-digit account number from the account_id
-        if not self.account_number:
-            self.account_number = str(self.account_id.int)[:11]  # Get first 11 digits of the UUID
-
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Account {self.account_number} - {self.user.username}"
-
-
-class Transaction(models.Model):
-    """
-    Model for transactions on an account, either deposits or withdrawals.
-    """
-    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="transactions")
-    transaction_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    date_of_transaction = models.DateTimeField(default=timezone.now)
-    description = models.TextField(blank=True, null=True)
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
-    recipient_name = models.CharField(max_length=255)
-    recipient_account_number = models.CharField(max_length=11)
-    time_sent = models.DateTimeField(auto_now_add=True)
-    time_received = models.DateTimeField(null=True, blank=True)
-    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='USD')
-    user_phone = models.CharField(max_length=15)
-    user_location = models.CharField(max_length=255)
-    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
-    tracking_number = models.CharField(max_length=15, unique=True, editable=False)
-
-    def save(self, *args, **kwargs):
-        # Validate amount
-        if self.amount <= 0:
-            raise ValidationError("Transaction amount must be greater than zero.")
-
-        # Check for sufficient balance on withdrawals
-        if self.transaction_type == 'withdrawal' and self.amount > self.account.balance:
-            raise ValidationError("Insufficient balance for this transaction.")
-
-        # Set unique tracking_number if not set
-        if not self.tracking_number:
-            self.tracking_number = f"{self.account.account_number}{random.randint(100000, 999999)}"
-
-        # Adjust account balance based on transaction type
-        if self.transaction_type == 'deposit':
-            self.account.balance += self.amount
-        elif self.transaction_type == 'withdrawal':
-            self.account.balance -= self.amount
-
-        # Save the updated balance and transaction
-        self.account.save()
-        super().save(*args, **kwargs)
-        
-        
-    def __str__(self):
-        return f"Transaction {self.transaction_id} - {self.amount} {self.currency}"
-    
-    
     
 class EmailVerificationToken(models.Model):
     token = models.CharField(max_length=255, unique=True, default=uuid.uuid4)
@@ -166,7 +70,66 @@ class EmailVerificationToken(models.Model):
         return f"Token({self.token}) for {self.user.email}"
     
     
+class Account(models.Model):
+    ACCOUNT_TYPES = [
+        ('SAVINGS', 'Savings'),
+        ('CURRENT', 'Current'),
+        ('WALLET', 'Wallet'),
+    ]
+
+    CURRENCY_CHOICES = [
+        ('USD', 'US Dollar'),
+        ('NGN', 'Nigerian Naira'),
+        ('ZAR', 'South African Rand'),
+        ('GBP', 'British Pound'),
+    ]
+
+    id = models.CharField(
+        primary_key=True,
+        max_length=20,
+        unique=True,
+        default=uuid.uuid4().hex[:20]  # 20-character unique identifier
+    )
+    user = models.ForeignKey(
+        'User', on_delete=models.CASCADE, related_name="accounts"
+    )
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
+    balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    account_number = models.CharField(max_length=11, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        """
+        Generate an 11-digit account number based on user's UUID if not already set.
+        Limit a user to a maximum of 5 accounts.
+        """
+        if not self.account_number:
+            self.account_number = self.generate_account_number()
+        
+        # Enforce account limit per user
+        if self.user.accounts.count() >= 5:
+            raise ValueError("A user can only have up to 5 accounts.")
+        
+        super().save(*args, **kwargs)
+
+    def generate_account_number(self) -> str:
+        """
+        Generate a unique 11-digit account number.
+        This ensures uniqueness based on UUID and truncates to fit 11 digits.
+        """
+        while True:
+            account_number = str(uuid.uuid4().int)[:11]
+            if not Account.objects.filter(account_number=account_number).exists():
+                return account_number
+
+    def __str__(self):
+        return f"{self.user.username} - {self.account_number} ({self.currency})"
     
+    
+    
+
 class ConfirmationCode(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     code = models.CharField(max_length=8)
@@ -175,3 +138,60 @@ class ConfirmationCode(models.Model):
 
     def is_valid(self):
         return now() <= self.expires_at
+    
+
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('TRANSFER', 'Transfer'),
+        ('PAYMENT', 'Payment'),
+    ]
+
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+    ]
+
+    id = models.CharField(primary_key=True, max_length=30, unique=True, default=uuid.uuid4)
+    sender_account = models.ForeignKey(
+        'Account', on_delete=models.CASCADE, related_name="sent_transactions"
+    )
+    receiver_account = models.ForeignKey(
+        'Account', on_delete=models.CASCADE, related_name="received_transactions"
+    )
+    sender_name = models.CharField(max_length=255)
+    receiver_name = models.CharField(max_length=255)
+    receiver_email = models.EmailField()
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    tracking_number = models.CharField(max_length=50, unique=True, editable=False)
+    time_initiated = models.DateTimeField(default=now)
+    time_completed = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.tracking_number:
+            user_id_segment = str(uuid.uuid4().int)[:30]  # Generate unique 30-digit identifier
+            today = now().strftime('%Y%m%d')  # Format date as YYYYMMDD
+            self.tracking_number = f"TXN-{today}-{user_id_segment}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.sender_name} -> {self.receiver_name}: {self.amount} {self.status}"
+
+
+
+
+
+
+class ConversionRate(models.Model):
+    base_currency = models.CharField(max_length=3)  # e.g., 'USD'
+    target_currency = models.CharField(max_length=3)  # e.g., 'NGN'
+    rate = models.DecimalField(max_digits=12, decimal_places=6)  # Higher precision for rates
+    updated_at = models.DateTimeField(auto_now=True)  # Timestamp of last update
+
+    def __str__(self):
+        return f"{self.base_currency} to {self.target_currency}: {self.rate}"

@@ -2,7 +2,7 @@ from datetime import timedelta
 import random
 import uuid
 from django.utils.timezone import now
-from .models import EmailVerificationToken, ConfirmationCode
+from .models import EmailVerificationToken, ConfirmationCode, ConversionRate
 from django.core.mail import send_mail
 from django.conf import settings
 from decimal import Decimal
@@ -59,15 +59,13 @@ EXCHANGE_RATES = {
     # Add more currency pairs as needed
 }
 
-def convert_currency(amount, from_currency, to_currency):
-    """
-    Convert the amount from one currency to another using predefined rates.
-    """
-    if from_currency == to_currency:
-        return amount  # No conversion needed
-    
+def convert_currency(base_currency, target_currency, amount):
     try:
-        rate = EXCHANGE_RATES[(from_currency, to_currency)]
-        return Decimal(amount) * Decimal(rate)
-    except KeyError:
-        raise ValueError(f"Exchange rate for {from_currency} to {to_currency} not found.")
+        conversion_rate = ConversionRate.objects.get(
+            base_currency=base_currency,
+            target_currency=target_currency
+        )
+        converted_amount = round(Decimal(amount) * conversion_rate.rate, 2)
+        return converted_amount, conversion_rate.rate
+    except ConversionRate.DoesNotExist:
+        raise ValueError(f"Conversion rate from {base_currency} to {target_currency} not available.")

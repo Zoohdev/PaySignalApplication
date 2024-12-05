@@ -9,18 +9,24 @@ class AuthTests(APITestCase):
     def setUp(self):
         # Create a user
         self.user = User.objects.create_user(
-            username="testuser",
-            password="testpassword",
-            email="test@example.com",
+            username ="john_tucks077",
+            email = "johntucks099@example.com",
+            password = "securePassword123",
+            firstname = "Jonie",
+            middlename = "Make",
+            lastname = "Doeman",
+            phone_number = "+1004567890",
+            date_of_birth = "1990-01-01",
+            country = "USA",
             is_verified_status=True
         )
         self.login_url = reverse("login")  # Adjust to your URL name
-        self.confirm_action_url = reverse("confirm-action")  # Adjust to your URL name
+        self.confirm_action_url = reverse("verify-confirmation-code")  # Adjust to your URL name
 
     def test_login_success(self):
         data = {
-            "username": "testuser",
-            "password": "testpassword"
+            "username": "john_tucks077",
+            "password" : "securePassword123"
         }
         response = self.client.post(self.login_url, data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -30,8 +36,8 @@ class AuthTests(APITestCase):
 
     def test_login_invalid_password(self):
         data = {
-            "username": "testuser",
-            "password": "wrongpassword"
+            "username": "john_tucks077",
+            "password" : "securePassword123"
         }
         response = self.client.post(self.login_url, data)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)

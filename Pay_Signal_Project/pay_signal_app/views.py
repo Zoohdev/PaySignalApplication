@@ -332,11 +332,9 @@ def edit_profile(request):
 
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.response import Response
-from django.http import JsonResponse
 from rest_framework.permissions import AllowAny
-from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework.decorators import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -345,13 +343,13 @@ from django.core.mail import send_mail
 from django.contrib.auth import authenticate, login
 from django.conf import settings
 from django.utils.timezone import now, timedelta
-from .serializers import UserRegistrationSerializer, LoginSerializer,  ConfirmationCodeSerializer
+from .serializers import UserRegistrationSerializer, TransactionSerializer, LoginSerializer,  ConfirmationCodeSerializer, AccountSerializer, TransactionPreviewSerializer
 from .models import User,Transaction, EmailVerificationToken, ConfirmationCode, Account
 from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email
 import logging
-from django.urls import reverse
-from django.db import transaction as db_transaction
+from rest_framework.generics import CreateAPIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import ValidationError
 
 
 logger = logging.getLogger(__name__)
@@ -593,10 +591,64 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
         return response
     
-class CustomJWTAuthentication(JWTAuthentication):
-    def authenticate(self, request):
-        # Look for tokens in cookies
-        access_token = request.COOKIES.get('access_token')
-        if access_token:
-            request.META['HTTP_AUTHORIZATION'] = f'Bearer {access_token}'
-        return super().authenticate(request)
+class CreateAccountView(CreateAPIView):
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Ensure the user cannot create more than 5 accounts
+        user = self.request.user  # Get the authenticated user
+        if user.accounts.count() >= 5:
+            return Response(
+                {"error": "A user can only create up to 5 accounts."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Extract user's first and last name
+        first_name = user.firstname or "First Name"
+        last_name = user.lastname or "Last Name"
+        
+        print(f"Creating account for user: {first_name} {last_name}")
+
+        # Save the account linked to the user
+        serializer.save(user=user)
+
+
+class CreateTransactionView(generics.CreateAPIView):
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+
+        # Fetch sender's account
+        sender_account = Account.objects.filter(user=user).first()
+        if not sender_account:
+            raise ValidationError({"error": "You must have a valid account to perform transactions."})
+
+        # Preview the transaction
+        preview_serializer = TransactionPreviewSerializer(data=request.data)
+        if not preview_serializer.is_valid():
+            return Response(preview_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        preview_data = preview_serializer.data  # Preview details
+
+        # Display preview to the user
+        response_data = {"preview": preview_data}
+
+        # Commit the transaction only if 'confirm' is in request data
+        if request.data.get("confirm", False):
+            transaction_serializer = self.get_serializer(data=request.data)
+            transaction_serializer.is_valid(raise_exception=True)
+
+            # Ensure sufficient balance before committing
+            amount = transaction_serializer.validated_data["amount"]
+            if sender_account.balance < amount:
+                raise ValidationError({"error": "Insufficient balance."})
+
+            # Save transaction
+            transaction_serializer.save(sender_account=sender_account)
+            response_data["transaction"] = transaction_serializer.data
+
+        return Response(response_data, status=status.HTTP_200_OK)
