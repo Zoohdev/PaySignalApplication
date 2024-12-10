@@ -78,7 +78,7 @@ class ConfirmationCodeSerializer(serializers.Serializer):
         return value
 
 
-class AccountSerializer(serializers.ModelSerializer):
+"""class AccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = Account
         fields = ['id', 'account_type', 'currency', 'balance', 'account_number', 'created_at', 'updated_at']
@@ -89,9 +89,9 @@ class AccountSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         return super().create(validated_data)
+    """
     
-    
-class TransactionSerializer(serializers.ModelSerializer):
+'''class TransactionSerializer(serializers.ModelSerializer):
     receiver_account_number = serializers.CharField(write_only=True)  # Input for receiver
     receiver_account = serializers.HiddenField(default=None)  # Resolved in validation
 
@@ -146,4 +146,105 @@ class TransactionPreviewSerializer(serializers.Serializer):
         data["sender_currency"] = sender_account.currency
         data["receiver_currency"] = receiver_account.currency
 
+        return data'''
+    
+    
+    
+    
+class AccountSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Account model.
+    """
+    class Meta:
+        model = Account
+        fields = [
+            'id', 'user', 'account_type', 'currency', 'balance', 
+            'account_number', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'account_number', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        """
+        Automatically associate the account with the authenticated user.
+        """
+        user = self.context['request'].user
+        validated_data['user'] = user
+        return super().create(validated_data)
+
+        
+        
+    
+
+
+class TransactionPreviewSerializer(serializers.Serializer):
+    """
+    Serializer for transaction previews.
+    Validates inputs for previewing transactions.
+    """
+    receiver_account_number = serializers.CharField(max_length=20)
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+    def validate(self, data):
+        receiver_account_number = data.get('receiver_account_number')
+        amount = data.get('amount')
+
+        # Ensure a positive transaction amount
+        if amount <= 0:
+            raise serializers.ValidationError("Transaction amount must be greater than zero.")
+
+        # Validate receiver account
+        try:
+            receiver_account = Account.objects.get(account_number=receiver_account_number)
+        except Account.DoesNotExist:
+            raise serializers.ValidationError({"receiver_account_number": "Receiver account not found."})
+
+        # Attach receiver account for further processing
+        data['receiver_account'] = receiver_account
+
         return data
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating a transaction.
+    """
+    confirm = serializers.BooleanField(default=False, write_only=True)  # Add confirm explicitly
+    receiver_account_number = serializers.CharField(write_only=True)  # Accept receiver account number
+
+    class Meta:
+        model = Transaction
+        fields = ['receiver_account_number', 'amount', 'confirm']  # Use receiver_account_number
+        
+        read_only_fields = ['id', 'status', 'created_at']
+
+
+    def validate(self, data):
+        sender_account = self.context.get('sender_account')  # Extract sender_account from context
+        if not sender_account:
+            raise serializers.ValidationError({"sender_account": "Sender account is missing or invalid."})
+
+        receiver_account_number = data.get('receiver_account_number')
+        try:
+            receiver_account = Account.objects.get(account_number=receiver_account_number)
+        except Account.DoesNotExist:
+            raise serializers.ValidationError({"receiver_account_number": "Receiver account not found."})
+
+        # Attach sender and receiver accounts to validated data
+        data['sender_account'] = sender_account
+        data['receiver_account'] = receiver_account
+        return data
+
+    def create(self, validated_data):
+        # Remove fields not part of the Transaction model
+        validated_data.pop('receiver_account_number', None)
+        converted_amount = validated_data.pop('converted_amount', None)
+        charges = validated_data.pop('charges', None)
+        validated_data.pop('confirm', None)
+
+        # Create the Transaction instance
+        transaction = Transaction.objects.create(
+            **validated_data,
+            converted_amount=converted_amount,
+            charges=charges
+        )
+        return transaction

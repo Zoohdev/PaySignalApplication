@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Checkout</title>
+</head>
+<body>
+    <h1>Transaction Preview</h1>
+    <p>Amount to Send: {{ preview.amount }}</p>
+    <p>To: {{ preview.to }}</p>
+    <p>Receiver Will Receive: {{ preview.receiver_will_receive }}</p>
+    <p>Charges: {{ preview.charges }}</p>
+    <p>Total: {{ preview.total }}</p>
+    
+    <form method="POST" action="{% url 'transactions:create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="confirm" value="true">
+        <button type="submit">Send</button>
+        <a href="{% url 'transactions:cancel' %}">Cancel</a>
+    </form>
+</body>
+</html>

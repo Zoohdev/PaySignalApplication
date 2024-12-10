@@ -94,7 +94,10 @@ class Account(models.Model):
         'User', on_delete=models.CASCADE, related_name="accounts"
     )
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
-    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES)
+    currency = models.CharField(
+        max_length=3,
+        choices=[("USD", "US Dollar"), ("GBP", "British Pound"), ("NGN", "Nigerian Naira"), ("ZAR", "South African Rand")]
+    )
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     account_number = models.CharField(max_length=11, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -142,7 +145,7 @@ class ConfirmationCode(models.Model):
 
 
 
-class Transaction(models.Model):
+'''class Transaction(models.Model):
     TRANSACTION_TYPES = [
         ('TRANSFER', 'Transfer'),
         ('PAYMENT', 'Payment'),
@@ -180,18 +183,64 @@ class Transaction(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.sender_name} -> {self.receiver_name}: {self.amount} {self.status}"
-
-
-
-
+        return f"{self.sender_name} -> {self.receiver_name}: {self.amount} {self.status}"'''
 
 
 class ConversionRate(models.Model):
-    base_currency = models.CharField(max_length=3)  # e.g., 'USD'
     target_currency = models.CharField(max_length=3)  # e.g., 'NGN'
     rate = models.DecimalField(max_digits=12, decimal_places=6)  # Higher precision for rates
     updated_at = models.DateTimeField(auto_now=True)  # Timestamp of last update
 
     def __str__(self):
         return f"{self.base_currency} to {self.target_currency}: {self.rate}"
+
+
+class Transaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('TRANSFER', 'Transfer'),
+        ('PAYMENT', 'Payment'),
+    ]
+
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('COMPLETED', 'Completed'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    id = models.CharField(primary_key=True, max_length=30, unique=True, default=uuid.uuid4)
+    sender_account = models.ForeignKey(
+        'Account', on_delete=models.CASCADE, related_name="sent_transactions"
+    )
+    receiver_account = models.ForeignKey(
+        'Account', on_delete=models.CASCADE, related_name="received_transactions"
+    )
+    sender_name = models.CharField(max_length=255)
+    receiver_name = models.CharField(max_length=255)
+    receiver_email = models.EmailField()
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)  # Sender's currency
+    converted_amount = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )  # Receiver's currency
+    charges = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )  # Transaction fees
+    encrypted_amount = models.CharField(
+        max_length=255, null=True, blank=True
+    )  # Optional for secure logging
+    tracking_number = models.CharField(max_length=50, unique=True, editable=False)
+    time_initiated = models.DateTimeField(default=now)
+    time_completed = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.tracking_number:
+            user_id_segment = str(uuid.uuid4().int)[:30]  # Generate unique 30-digit identifier
+            today = now().strftime('%Y%m%d')  # Format date as YYYY-MM-DD
+            self.tracking_number = f"TXN-{today}-{user_id_segment}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.sender_name} -> {self.receiver_name}: {self.amount} {self.status}"

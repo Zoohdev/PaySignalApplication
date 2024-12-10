@@ -342,12 +342,13 @@ from rest_framework.decorators import  permission_classes
 from django.core.mail import send_mail
 from django.contrib.auth import authenticate, login
 from django.conf import settings
+from decimal import Decimal
 from django.utils.timezone import now, timedelta
 from .serializers import UserRegistrationSerializer, TransactionSerializer, LoginSerializer,  ConfirmationCodeSerializer, AccountSerializer, TransactionPreviewSerializer
 from .models import User,Transaction, EmailVerificationToken, ConfirmationCode, Account
-from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email
+from .utils import generate_email_verification_token, generate_confirmation_code,  send_action_confirmation_email, calculate_charges, convert_currency, validate_currency_pair, format_transaction_preview
 import logging
-from rest_framework.generics import CreateAPIView
+from django.db import transaction as db_transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import ValidationError
 
@@ -591,7 +592,7 @@ class CookieTokenRefreshView(TokenRefreshView):
             )
         return response
     
-class CreateAccountView(CreateAPIView):
+'''class CreateAccountView(CreateAPIView):
     queryset = Account.objects.all()
     serializer_class = AccountSerializer
     permission_classes = [IsAuthenticated]
@@ -613,9 +614,9 @@ class CreateAccountView(CreateAPIView):
 
         # Save the account linked to the user
         serializer.save(user=user)
+'''
 
-
-class CreateTransactionView(generics.CreateAPIView):
+'''class CreateTransactionView(generics.CreateAPIView):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
 
@@ -651,4 +652,158 @@ class CreateTransactionView(generics.CreateAPIView):
             transaction_serializer.save(sender_account=sender_account)
             response_data["transaction"] = transaction_serializer.data
 
-        return Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)'''
+        
+        
+class CreateAccountView(generics.CreateAPIView):
+    """
+    API view to create a new account.
+    """
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        
+        
+        # Ensure the user cannot create more than 5 accounts
+        if user.accounts.count() >= 5:
+            raise ValidationError({"error": "A user can only create up to 5 accounts."})
+
+        # Save the account linked to the user
+        serializer.save(user=user)
+
+
+class TransactionPreviewAPIView(APIView):
+    """
+    API endpoint to preview transaction details.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        # Fetch the sender's account associated with the authenticated user
+        sender_account = Account.objects.filter(user=user).first()
+        if not sender_account:
+            return Response(
+                {"error": "Sender account not found for the authenticated user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Pass data to serializer
+        serializer = TransactionPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        receiver_account = serializer.validated_data['receiver_account']
+        amount = serializer.validated_data['amount']
+
+        # Handle currency conversion and charges
+        same_currency = sender_account.currency == receiver_account.currency
+        if same_currency:
+            converted_amount = amount
+            charges = calculate_charges(amount, same_currency=True)
+        else:
+            try:
+                converted_amount, _ = convert_currency(
+                    sender_account.currency, receiver_account.currency, amount
+                )
+                charges = calculate_charges(converted_amount, same_currency=False)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        total = converted_amount + charges
+
+        # Format response
+        preview_data = format_transaction_preview(
+            sender_account.currency, receiver_account.currency,
+            amount, converted_amount, charges, total
+        )
+        return Response(preview_data, status=status.HTTP_200_OK)
+
+
+class CreateTransactionView(generics.CreateAPIView):
+    """
+    API view to create a transaction after confirmation.
+    """
+    serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+
+        # Fetch sender account associated with the authenticated user
+        sender_account = Account.objects.filter(user=user).first()
+        if not sender_account:
+            return Response(
+                {"error": "Sender account not found for the authenticated user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Copy request data and pass sender account to the serializer context
+        serializer = self.get_serializer(
+            data=request.data, context={'sender_account': sender_account}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # Extract validated data
+        receiver_account = serializer.validated_data['receiver_account']
+        amount = serializer.validated_data['amount']
+        confirm = serializer.validated_data.get('confirm', False)
+
+        # Handle currency conversion and charges
+        same_currency = sender_account.currency == receiver_account.currency
+        if same_currency:
+            converted_amount = amount
+            charges = calculate_charges(amount, same_currency=True)
+        else:
+            try:
+                converted_amount, _ = convert_currency(
+                    sender_account.currency, receiver_account.currency, amount
+                )
+                charges = calculate_charges(converted_amount, same_currency=False)
+            except ValueError as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        total = converted_amount + charges
+
+        if confirm:
+            # Perform the transaction
+            try:
+                with db_transaction.atomic():
+                    if sender_account.balance < total:
+                        return Response({"error": "Insufficient funds."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Deduct from sender and credit to receiver
+                    sender_account.balance -= total
+                    receiver_account.balance += converted_amount
+                    sender_account.save()
+                    receiver_account.save()
+
+                    # Save transaction
+                    completed_transaction = serializer.save(
+                        converted_amount=converted_amount,
+                        charges=charges,
+                        status='COMPLETED',
+                    )
+
+                # Return the transaction details
+                return Response(
+                    {"transaction": TransactionSerializer(completed_transaction).data},
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {"error": f"Transaction failed: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        else:
+            # Return preview details if not confirmed
+            preview_data = {
+                "amount": f"{amount} {sender_account.currency}",
+                "converted_amount": f"{converted_amount} {receiver_account.currency}",
+                "charges": f"{charges} {receiver_account.currency}",
+                "total": f"{total} {receiver_account.currency}"
+            }
+            return Response(preview_data, status=status.HTTP_200_OK)

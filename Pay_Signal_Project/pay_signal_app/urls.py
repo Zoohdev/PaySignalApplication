@@ -7,7 +7,8 @@ from .views import (
     LogoutView,
     CookieTokenRefreshView,
     CreateAccountView,
-    CreateTransactionView
+    CreateTransactionView,
+    TransactionPreviewAPIView
 
     
 )
@@ -20,5 +21,6 @@ urlpatterns = [
     path('confirm-action/', ConfirmActionView.as_view(), name='verify-confirmation-code'),
     path("token/refresh/", CookieTokenRefreshView.as_view(), name="token-refresh"),
     path('accounts/create/', CreateAccountView.as_view(), name='create-account'),
-    path('transactions/create/', CreateTransactionView.as_view(), name='create-transaction'),
+    path('preview/', TransactionPreviewAPIView.as_view(), name='preview'),
+    path('transactions/create/', CreateTransactionView.as_view(), name='create'),
 ]
